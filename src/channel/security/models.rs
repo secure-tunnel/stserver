@@ -739,79 +739,79 @@ pub fn model_rand_choice() -> u32 {
 
 #[cfg(test)]
 mod test {
-    use crate::mixed::models;
+    use super::*;
     use std::sync::Arc;
 
     #[test]
     fn switchmodel() {
         let mut v: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7];
-        models::mixed_switchmodel(&mut v);
+        mixed_switchmodel(&mut v);
         assert_eq!(v[0], 7);
         assert_eq!(v[3], 4);
         let mut v: Vec<u8> = vec![1, 2, 3, 4, 5, 6];
-        models::mixed_switchmodel(&mut v);
+        mixed_switchmodel(&mut v);
         assert_eq!(v[0], 6);
         assert_eq!(v[2], 4);
     }
 
     #[test]
-    fn mixed_xor() {
+    fn mixed_xor_t() {
         let mut v: Vec<u8> = vec![1, 2, 3, 4, 5];
-        models::mixed_xor(&mut v);
+        mixed_xor(&mut v);
         assert_eq!(v[0], 1 ^ 0x39);
     }
 
     #[test]
-    fn mixed_matrix_t_refra() {
+    fn mixed_matrix_t_refra_t() {
         let mut v: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8];
-        models::mixed_matrix_t_refra(&mut v);
+        mixed_matrix_t_refra(&mut v);
         println!("middle vector: {:?}", v);
-        models::mixed_reverse_matrix_t_refra(&mut v);
+        mixed_reverse_matrix_t_refra(&mut v);
         assert_eq!(v, vec![1, 2, 3, 4, 5, 6, 7, 8]);
     }
 
     #[test]
-    fn mixed_matrix_t_refra_re() {
+    fn mixed_matrix_t_refra_re_t() {
         let mut v: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8];
-        models::mixed_matrix_t_refra_re(&mut v);
+        mixed_matrix_t_refra_re(&mut v);
         println!("middle vector: {:?}", v);
-        models::mixed_reverse_matrix_t_refra_re(&mut v);
+        mixed_reverse_matrix_t_refra_re(&mut v);
         assert_eq!(v, vec![1, 2, 3, 4, 5, 6, 7, 8]);
     }
 
     #[test]
-    fn mixed_reversible_matrix() {
+    fn mixed_reversible_matrix_t() {
         let mut v = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         let v_snap = v.clone();
-        models::mixed_reversible_matrix(&mut v);
-        models::mixed_reverse_reversible_matrix(&mut v);
+        mixed_reversible_matrix(&mut v);
+        mixed_reverse_reversible_matrix(&mut v);
         assert_eq!(v, v_snap);
     }
 
     #[test]
-    fn mixed_movebit2() {
+    fn mixed_movebit2_t() {
         let mut v = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         let v_snap = v.clone();
-        models::mixed_movebit2(&mut v);
-        models::mixed_reverse_movebit2(&mut v);
+        mixed_movebit2(&mut v);
+        mixed_reverse_movebit2(&mut v);
         assert_eq!(v, v_snap);
     }
 
     #[test]
-    fn mixed_movebit3() {
+    fn mixed_movebit3_t() {
         let mut v = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         let v_snap = v.clone();
-        models::mixed_movebit3(&mut v);
-        models::mixed_movebit3(&mut v);
+        mixed_movebit3(&mut v);
+        mixed_movebit3(&mut v);
         assert_eq!(v, v_snap);
     }
 
     #[test]
-    fn mixed_movebit4() {
+    fn mixed_movebit4_t() {
         let mut v = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         let v_snap = v.clone();
-        models::mixed_movebit4(&mut v);
-        models::mixed_movebit4(&mut v);
+        mixed_movebit4(&mut v);
+        mixed_movebit4(&mut v);
         assert_eq!(v, v_snap);
     }
 }

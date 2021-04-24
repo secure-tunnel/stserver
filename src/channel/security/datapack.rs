@@ -8,38 +8,46 @@ use std::ptr::null;
 /*
    报文中4字节存储数值采用大端序处理
 
-   报文头|版本号|时间戳|混淆模式X|混淆模式Y|数据段混淆后长度|数据段混淆前长度|数据类型|数据|报文尾
+   报文头|版本号|时间戳|混淆模式X|混淆模式Y|数据段混淆后长度|数据段混淆前长度|数据类型|TOKEN|数据|报文尾
 
    AES:  KEY 32bit, IV 16bit
+   TOEKN 40bytes
 */
 
-pub struct RespData {
-    pub datatype: u8,
-    pub data: Vec<u8>,
+pub struct DataEntry {
+    model_x: u8,
+    model_y: u8,
+    token: Vec<u8>,
+    aes_key: Vec<u8>,
+    data_type: u8,
+    content: Vec<u8>,
 }
 
-impl RespData {
-    fn new_null() -> RespData {
-        RespData {
-            datatype: 0,
-            data: vec![],
-        }
-    }
-
-    fn new(data_type: u8, data: Vec<u8>) -> RespData {
-        RespData {
-            datatype: data_type,
-            data: data,
+impl DataEntry {
+    fn new() -> DataEntry {
+        DataEntry {
+            model_x: 0,
+            model_y: 0,
+            token: vec![],
+            aes_key: vec![],
+            data_type: 0,
+            content: vec![],
         }
     }
 }
 
-fn common_pack_core(data: Vec<u8>, model_x: u8, model_y: u8, data_type: u8) -> Vec<u8> {
+fn common_pack_core(
+    data: &Vec<u8>,
+    model_x: u8,
+    model_y: u8,
+    data_type: u8,
+    token: &str,
+) -> Vec<u8> {
     let mut encrypted_data = data.clone();
     models::model_encrypt(&mut encrypted_data, model_x as u32);
     models::model_encrypt(&mut encrypted_data, model_y as u32);
 
-    let total_len = 1 + 1 + 7 + 1 + 1 + 4 + 4 + 1 + encrypted_data.len() + 1;
+    let total_len = 1 + 1 + 7 + 1 + 1 + 4 + 4 + 1 + 40 + encrypted_data.len() + 1;
     let mut res = vec![0; total_len];
     res[0] = 0xF0;
     res[1] = 0x01;
@@ -49,7 +57,8 @@ fn common_pack_core(data: Vec<u8>, model_x: u8, model_y: u8, data_type: u8) -> V
     res[11..15].copy_from_slice((encrypted_data.len() as u32).to_vector().as_slice());
     res[15..19].copy_from_slice((data.len() as u32).to_vector().as_slice());
     res[19] = data_type;
-    res[20..total_len - 1].copy_from_slice(encrypted_data.as_slice());
+    res[20..60].copy_from_slice(token.as_bytes());
+    res[60..total_len - 1].copy_from_slice(encrypted_data.as_slice());
     res[total_len - 1] = 0xFE;
     res
 }
@@ -59,7 +68,12 @@ fn common_pack_core(data: Vec<u8>, model_x: u8, model_y: u8, data_type: u8) -> V
    data 要混淆的数据
    key 公钥或者对称密钥
 */
-pub fn common_pack(data: Vec<u8>, key: Vec<u8>, data_type: u8) -> Result<Vec<u8>, Error> {
+pub fn common_pack(
+    data: &Vec<u8>,
+    key: &Vec<u8>,
+    data_type: u8,
+    token: &str,
+) -> Result<Vec<u8>, Error> {
     // 产生model x and y
     let model_x = models::model_rand_choice();
     let mut model_y = model_x;
@@ -70,27 +84,15 @@ pub fn common_pack(data: Vec<u8>, key: Vec<u8>, data_type: u8) -> Result<Vec<u8>
 
     // 协商第二步返回已经可以通过动态对称密钥加密了
     if data_type == 1 {
-        let res = common_pack_core(data, model_x as u8, model_y as u8, data_type);
+        let res = common_pack_core(data, model_x as u8, model_y as u8, data_type, token);
         Ok(res)
     } else if data_type == 2 || data_type == 3 {
         // 业务数据 对称密钥
         let mut key_r = key.clone();
         key_r[0] = model_x as u8;
         key_r[key.len() - 1] = model_y as u8;
-        let mut encrypter = Crypter::new(
-            Cipher::aes_256_cbc(),
-            Mode::Encrypt,
-            &key_r[0..32],
-            Some(&key_r[32..]),
-        )
-        .unwrap();
-        let block_size = Cipher::aes_256_cbc().block_size();
-        let mut ciphertext = vec![0; data.len() + block_size];
-        let mut count = encrypter.update(data.as_slice(), &mut ciphertext).unwrap();
-        count += encrypter.finalize(&mut ciphertext[count..]).unwrap();
-        ciphertext.truncate(count);
-
-        let res = common_pack_core(ciphertext, model_x as u8, model_y as u8, data_type);
+        let ciphertext = aes_256_cbc(&data, &key_r, Mode::Encrypt).unwrap();
+        let res = common_pack_core(&ciphertext, model_x as u8, model_y as u8, data_type, token);
         Ok(res)
     } else {
         Err(Error::new(ErrorKind::DATATYPE, "data type not matched!"))
@@ -100,14 +102,14 @@ pub fn common_pack(data: Vec<u8>, key: Vec<u8>, data_type: u8) -> Result<Vec<u8>
 /*
    公共报文解密
    data 要解混淆的数据
-   key 私钥或者对称密钥 key24 + iv16
+   key 私钥或者对称密钥 key32 + iv16
 */
-pub fn common_unpack(data: Vec<u8>, key: Vec<u8>) -> Result<RespData, Error> {
+pub fn common_unpack(data: &Vec<u8>) -> Result<DataEntry, Error> {
     if data.is_empty()
         || data[0] != 0xF0
         || data[1] != 0x01
         || data[data.len() - 1] != 0xFE
-        || data.len() <= 21
+        || data.len() <= 61
     {
         return Err(Error::new(ErrorKind::DATA_INVALID, "data check failed!"));
     }
@@ -117,11 +119,11 @@ pub fn common_unpack(data: Vec<u8>, key: Vec<u8>) -> Result<RespData, Error> {
     let enc_data_len = data[11..15].to_u32();
     let data_len = data[15..19].to_u32();
     let data_type = data[19];
-    if (enc_data_len + 21 != data.len() as u32) {
+    if (enc_data_len + 61 != data.len() as u32) {
         return Err(Error::new(ErrorKind::DATA_INVALID, "data len not matched!"));
     }
-
-    let enc_data = data[20..data.len() - 1].to_vec();
+    let token = String::from_utf8(data[20..60].to_vec()).unwrap();
+    let enc_data = data[60..data.len() - 1].to_vec();
     let mut mixed_data = enc_data.clone();
     models::model_decrypt(&mut mixed_data, model_y as u32);
     models::model_decrypt(&mut mixed_data, model_x as u32);
@@ -133,28 +135,21 @@ pub fn common_unpack(data: Vec<u8>, key: Vec<u8>) -> Result<RespData, Error> {
         ));
     }
 
-    if data_type == 1 || data_type == 2 {
-        Ok(RespData::new(data_type, mixed_data))
+    if data_type == 1 {
+        Ok(DataEntry::new())
+    } else if data_type == 2 {
+        todo!()
+        // 校验TOKEN
     } else if data_type == 3 {
+        // 校验TOKEN
+        // AES解密
+        // 通过TOKEN找到对称密钥
+        let key = vec![];
         let mut key_r = key.clone();
         key_r[0] = model_x as u8;
         key_r[key.len() - 1] = model_y as u8;
-        let mut encrypter = Crypter::new(
-            Cipher::aes_256_cbc(),
-            Mode::Decrypt,
-            &key_r[0..32],
-            Some(&key_r[32..]),
-        )
-        .unwrap();
-        let block_size = Cipher::aes_256_cbc().block_size();
-        let mut ciphertext = vec![0; mixed_data.len() + block_size];
-        let mut count = encrypter
-            .update(mixed_data.as_slice(), &mut ciphertext)
-            .unwrap();
-        count += encrypter.finalize(&mut ciphertext[count..]).unwrap();
-        ciphertext.truncate(count);
-
-        Ok(RespData::new(data_type, ciphertext))
+        let ciphertext = aes_256_cbc(&mixed_data, &key_r, Mode::Decrypt).unwrap();
+        Ok(DataEntry::new())
     } else {
         Err(Error::new(ErrorKind::DATATYPE, "data type not matched!"))
     }
@@ -205,11 +200,20 @@ fn timestamp_to_string(v: Vec<u8>) -> String {
     todo!()
 }
 
+fn aes_256_cbc(data: &Vec<u8>, key: &Vec<u8>, mode: Mode) -> Result<Vec<u8>, Error> {
+    let mut encrypter =
+        Crypter::new(Cipher::aes_256_cbc(), mode, &key[0..32], Some(&key[32..])).unwrap();
+    let block_size = Cipher::aes_256_cbc().block_size();
+    let mut ciphertext = vec![0; data.len() + block_size];
+    let mut count = encrypter.update(data.as_slice(), &mut ciphertext).unwrap();
+    count += encrypter.finalize(&mut ciphertext[count..]).unwrap();
+    ciphertext.truncate(count);
+    Ok(ciphertext)
+}
+
 #[cfg(test)]
 mod test {
-    use crate::mixed::models;
-    use crate::mixed::security;
-    use crate::mixed::security::{BytesConvert, RespData, U32Convert};
+    use super::*;
     use openssl::symm::{Cipher, Crypter, Mode};
     use std::ptr::null;
 
@@ -233,8 +237,8 @@ mod test {
     }
 
     #[test]
-    fn current_timestamp() {
-        let v = security::current_timestamp();
+    fn current_timestamp1() {
+        let v = current_timestamp();
         println!("{:#?}", v);
     }
 
@@ -242,8 +246,10 @@ mod test {
     fn pack() {
         let data = vec![1, 2, 3, 4, 5, 6];
         let key = vec![20; 48];
-        let v1 = security::common_pack(data.clone(), key.clone(), 3).unwrap_or(Vec::new());
-        match security::common_unpack(v1, key.clone()) {
+        let token = vec![0; 40];
+        let v1 = common_pack(&data, &key, 1, String::from_utf8(token).unwrap().as_str())
+            .unwrap_or(Vec::new());
+        match common_unpack(&v1) {
             Ok(data1) => assert_eq!(data, data1.data),
             Err(message) => println!("{}", message),
         }
