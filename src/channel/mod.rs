@@ -1,5 +1,5 @@
 mod security;
-pub mod tunnel;
+mod tunnel;
 
 use security::datapack;
 use std::net::SocketAddr;
@@ -9,8 +9,18 @@ use std::net::SocketAddr;
 */
 pub fn tunnel_process(addr: SocketAddr, data: &Vec<u8>) -> Vec<u8> {
     println!("{:#?}", addr);
-    datapack::common_unpack(data);
+    let dataEntry = datapack::common_unpack(data).unwrap();
 
-    // security::common_pack(data, )
+    if dataEntry.data_type == 1 {
+        tunnel::tunnel_first(&dataEntry.content)
+    }else if dataEntry.data_type == 2 {
+        // check dataEntry.token()
+        let decrypt_data = dataEntry.decrypt();
+    }else {
+        // check dataEntry.token()
+        let decrypt_data = dataEntry.decrypt();
+    }
+
     unimplemented!()
 }
+

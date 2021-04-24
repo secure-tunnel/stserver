@@ -4,6 +4,7 @@ use hyper::Response;
 use mysql_async::chrono::{Datelike, Local, Timelike};
 use openssl::symm::{Cipher, Crypter, Mode};
 use std::ptr::null;
+use crate::utils;
 
 /*
    报文中4字节存储数值采用大端序处理
@@ -17,23 +18,31 @@ use std::ptr::null;
 pub struct DataEntry {
     model_x: u8,
     model_y: u8,
-    token: Vec<u8>,
-    aes_key: Vec<u8>,
-    data_type: u8,
-    content: Vec<u8>,
+    pub token: Vec<u8>,
+    pub aes_key: Vec<u8>,
+    pub data_type: u8,
+    pub content: Vec<u8>,
 }
 
 impl DataEntry {
-    fn new() -> DataEntry {
+    pub fn new(model_x: u8, model_y: u8, token: &Vec<u8>, data_type: u8, data: &Vec<u8>) -> DataEntry {
         DataEntry {
-            model_x: 0,
-            model_y: 0,
-            token: vec![],
+            model_x: model_x,
+            model_y: model_y,
+            token: token.clone(),
             aes_key: vec![],
-            data_type: 0,
-            content: vec![],
+            data_type: data_type,
+            content: data.clone(),
         }
     }
+
+    pub fn decrypt(&self) -> Vec<u8> {
+        let mut key = self.aes_key.clone();
+        key[0] = self.model_x as u8;
+        key[self.aes_key.len() - 1] = self.model_y as u8;
+        utils::aes_256_cbc(&self.content, &key, Mode::Decrypt).unwrap()
+    }
+
 }
 
 fn common_pack_core(
@@ -51,11 +60,11 @@ fn common_pack_core(
     let mut res = vec![0; total_len];
     res[0] = 0xF0;
     res[1] = 0x01;
-    res[2..9].copy_from_slice(current_timestamp().as_slice());
+    res[2..9].copy_from_slice(utils::current_timestamp().as_slice());
     res[9] = model_x as u8;
     res[10] = model_y as u8;
-    res[11..15].copy_from_slice((encrypted_data.len() as u32).to_vector().as_slice());
-    res[15..19].copy_from_slice((data.len() as u32).to_vector().as_slice());
+    res[11..15].copy_from_slice(utils::u32_to_vector(encrypted_data.len() as u32).as_slice());
+    res[15..19].copy_from_slice(utils::u32_to_vector(data.len() as u32).as_slice());
     res[19] = data_type;
     res[20..60].copy_from_slice(token.as_bytes());
     res[60..total_len - 1].copy_from_slice(encrypted_data.as_slice());
@@ -91,7 +100,7 @@ pub fn common_pack(
         let mut key_r = key.clone();
         key_r[0] = model_x as u8;
         key_r[key.len() - 1] = model_y as u8;
-        let ciphertext = aes_256_cbc(&data, &key_r, Mode::Encrypt).unwrap();
+        let ciphertext = utils::aes_256_cbc(&data, &key_r, Mode::Encrypt).unwrap();
         let res = common_pack_core(&ciphertext, model_x as u8, model_y as u8, data_type, token);
         Ok(res)
     } else {
@@ -116,13 +125,13 @@ pub fn common_unpack(data: &Vec<u8>) -> Result<DataEntry, Error> {
 
     let model_x = data[9];
     let model_y = data[10];
-    let enc_data_len = data[11..15].to_u32();
-    let data_len = data[15..19].to_u32();
+    let enc_data_len = utils::u8_array_to_u32(&data[11..15]);
+    let data_len = utils::u8_array_to_u32(&data[15..19]);
     let data_type = data[19];
     if (enc_data_len + 61 != data.len() as u32) {
         return Err(Error::new(ErrorKind::DATA_INVALID, "data len not matched!"));
     }
-    let token = String::from_utf8(data[20..60].to_vec()).unwrap();
+    let token = data[20..60].to_vec();
     let enc_data = data[60..data.len() - 1].to_vec();
     let mut mixed_data = enc_data.clone();
     models::model_decrypt(&mut mixed_data, model_y as u32);
@@ -135,87 +144,16 @@ pub fn common_unpack(data: &Vec<u8>) -> Result<DataEntry, Error> {
         ));
     }
 
-    if data_type == 1 {
-        Ok(DataEntry::new())
-    } else if data_type == 2 {
-        todo!()
-        // 校验TOKEN
-    } else if data_type == 3 {
-        // 校验TOKEN
-        // AES解密
-        // 通过TOKEN找到对称密钥
-        let key = vec![];
-        let mut key_r = key.clone();
-        key_r[0] = model_x as u8;
-        key_r[key.len() - 1] = model_y as u8;
-        let ciphertext = aes_256_cbc(&mixed_data, &key_r, Mode::Decrypt).unwrap();
-        Ok(DataEntry::new())
-    } else {
-        Err(Error::new(ErrorKind::DATATYPE, "data type not matched!"))
-    }
+    Ok(DataEntry::new(model_x, model_y, &token, data_type, &mixed_data))
 }
 
-trait BytesConvert {
-    fn to_u32(&self) -> u32;
-}
-
-impl BytesConvert for [u8] {
-    fn to_u32(&self) -> u32 {
-        u32::from(self[0]) << 24
-            | u32::from(self[1]) << 16
-            | u32::from(self[2]) << 8
-            | u32::from(self[3])
-    }
-}
-
-trait U32Convert {
-    fn to_vector(&self) -> Vec<u8>;
-}
-
-impl U32Convert for u32 {
-    fn to_vector(&self) -> Vec<u8> {
-        let mut t: Vec<u8> = vec![0; 4];
-        t[0] = (self >> 24) as u8;
-        t[1] = ((self & 0xff0000) >> 16) as u8;
-        t[2] = ((self & 0xff00) >> 8) as u8;
-        t[3] = (self & 0xff) as u8;
-        t
-    }
-}
-
-fn current_timestamp() -> Vec<u8> {
-    let mut v: Vec<u8> = vec![0; 7];
-    let now = Local::now();
-    v[0] = (now.year() / 100) as u8;
-    v[1] = (now.year() % 100) as u8;
-    v[2] = now.month() as u8;
-    v[3] = now.day() as u8;
-    v[4] = now.hour() as u8;
-    v[5] = now.minute() as u8;
-    v[6] = now.second() as u8;
-    v
-}
-
-fn timestamp_to_string(v: Vec<u8>) -> String {
-    todo!()
-}
-
-fn aes_256_cbc(data: &Vec<u8>, key: &Vec<u8>, mode: Mode) -> Result<Vec<u8>, Error> {
-    let mut encrypter =
-        Crypter::new(Cipher::aes_256_cbc(), mode, &key[0..32], Some(&key[32..])).unwrap();
-    let block_size = Cipher::aes_256_cbc().block_size();
-    let mut ciphertext = vec![0; data.len() + block_size];
-    let mut count = encrypter.update(data.as_slice(), &mut ciphertext).unwrap();
-    count += encrypter.finalize(&mut ciphertext[count..]).unwrap();
-    ciphertext.truncate(count);
-    Ok(ciphertext)
-}
 
 #[cfg(test)]
 mod test {
     use super::*;
     use openssl::symm::{Cipher, Crypter, Mode};
     use std::ptr::null;
+    use crate::utils;
 
     #[test]
     fn rand() {
@@ -226,20 +164,6 @@ mod test {
             model_y = models::model_rand_choice();
         }
         println!("{}, {}", model_x, model_y);
-    }
-
-    #[test]
-    fn bytes_convert() {
-        let v: Vec<u8> = vec![1, 2, 3, 4];
-        assert_eq!(v[0..4].to_u32(), 0b00000001000000100000001100000100);
-        let t: u32 = 0b00000001000000100000001100000100;
-        assert_eq!(t.to_vector(), v);
-    }
-
-    #[test]
-    fn current_timestamp1() {
-        let v = current_timestamp();
-        println!("{:#?}", v);
     }
 
     #[test]

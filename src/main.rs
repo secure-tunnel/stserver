@@ -1,6 +1,7 @@
 mod channel;
 mod db;
 mod error;
+mod utils;
 
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};

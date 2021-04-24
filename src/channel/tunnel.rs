@@ -8,4 +8,16 @@
    3
 */
 
-use super::security::datapack;
+/*
+    处理协商第一个请求
+ */
+pub(crate) fn tunnel_first(data: &Vec<u8>) {
+
+}
+
+/*
+    处理协商第二个请求
+ */
+pub fn tunnel_second() {
+
+}
