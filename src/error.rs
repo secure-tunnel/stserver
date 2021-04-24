@@ -1,5 +1,5 @@
-use std::fmt::{Display, Formatter};
 use std::fmt;
+use std::fmt::{Display, Formatter};
 
 pub struct Error {
     code: ErrorKind,
@@ -8,9 +8,9 @@ pub struct Error {
 
 impl Error {
     pub fn new(kind: ErrorKind, msg: &str) -> Error {
-        Error{
+        Error {
             code: kind,
-            msg: String::from(msg)
+            msg: String::from(msg),
         }
     }
 }

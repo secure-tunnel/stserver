@@ -1,12 +1,11 @@
-mod mixed;
 mod error;
+mod mixed;
 
+use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Method, Request, Response, Server, StatusCode};
+use std::borrow::Borrow;
 use std::convert::Infallible;
 use std::net::SocketAddr;
-use hyper::{Body, Request, Response, Server, Method, StatusCode};
-use hyper::service::{make_service_fn, service_fn};
-use std::borrow::Borrow;
-
 
 async fn data_process(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     if req.method().eq(&Method::POST) {

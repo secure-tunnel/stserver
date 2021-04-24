@@ -1,9 +1,9 @@
-use std::vec::Vec;
+use rand::Rng;
+use std::env::temp_dir;
+use std::panic::resume_unwind;
 use std::slice::IterMut;
 use std::sync::Arc;
-use std::panic::resume_unwind;
-use std::env::temp_dir;
-use rand::Rng;
+use std::vec::Vec;
 
 const MIXED_MATRIX_T_L: usize = 9;
 const MIXED_MATRIX_F_L: usize = 16;
@@ -33,13 +33,13 @@ fn mixed_xor(v: &mut Vec<u8>) {
 }
 
 /*
-    矩阵计算
- */
+   矩阵计算
+*/
 fn mixed_matrix_t_refra(v: &mut Vec<u8>) {
     let actually_len = v.len();
     let mut slen = match v.len() % MIXED_MATRIX_T_L {
         0 => actually_len,
-        _ => (actually_len / MIXED_MATRIX_T_L + 1) * MIXED_MATRIX_T_L
+        _ => (actually_len / MIXED_MATRIX_T_L + 1) * MIXED_MATRIX_T_L,
     };
 
     let offset = 4;
@@ -89,7 +89,7 @@ fn mixed_matrix_t_refra_re(v: &mut Vec<u8>) {
     let actually_len = v.len();
     let mut slen = match v.len() % MIXED_MATRIX_T_L {
         0 => actually_len,
-        _ => (actually_len / MIXED_MATRIX_T_L + 1) * MIXED_MATRIX_T_L
+        _ => (actually_len / MIXED_MATRIX_T_L + 1) * MIXED_MATRIX_T_L,
     };
 
     let offset = 4;
@@ -139,7 +139,7 @@ fn mixed_matrix_t_row(v: &mut Vec<u8>) {
     let actually_len = v.len();
     let mut slen = match v.len() % MIXED_MATRIX_T_L {
         0 => actually_len,
-        _ => (actually_len / MIXED_MATRIX_T_L + 1) * MIXED_MATRIX_T_L
+        _ => (actually_len / MIXED_MATRIX_T_L + 1) * MIXED_MATRIX_T_L,
     };
 
     let offset = 4;
@@ -189,7 +189,7 @@ fn mixed_matrix_t_col(v: &mut Vec<u8>) {
     let actually_len = v.len();
     let mut slen = match v.len() % MIXED_MATRIX_T_L {
         0 => actually_len,
-        _ => (actually_len / MIXED_MATRIX_T_L + 1) * MIXED_MATRIX_T_L
+        _ => (actually_len / MIXED_MATRIX_T_L + 1) * MIXED_MATRIX_T_L,
     };
 
     let offset = 4;
@@ -239,7 +239,7 @@ fn mixed_matrix_f_refra(v: &mut Vec<u8>) {
     let actually_len = v.len();
     let mut slen = match v.len() % MIXED_MATRIX_F_L {
         0 => actually_len,
-        _ => (actually_len / MIXED_MATRIX_F_L + 1) * MIXED_MATRIX_F_L
+        _ => (actually_len / MIXED_MATRIX_F_L + 1) * MIXED_MATRIX_F_L,
     };
 
     let offset = 4;
@@ -303,7 +303,7 @@ fn mixed_matrix_f_refra_re(v: &mut Vec<u8>) {
     let actually_len = v.len();
     let mut slen = match v.len() % MIXED_MATRIX_F_L {
         0 => actually_len,
-        _ => (actually_len / MIXED_MATRIX_F_L + 1) * MIXED_MATRIX_F_L
+        _ => (actually_len / MIXED_MATRIX_F_L + 1) * MIXED_MATRIX_F_L,
     };
 
     let offset = 4;
@@ -367,7 +367,7 @@ fn mixed_matrix_f_row(v: &mut Vec<u8>) {
     let actually_len = v.len();
     let mut slen = match v.len() % MIXED_MATRIX_F_L {
         0 => actually_len,
-        _ => (actually_len / MIXED_MATRIX_F_L + 1) * MIXED_MATRIX_F_L
+        _ => (actually_len / MIXED_MATRIX_F_L + 1) * MIXED_MATRIX_F_L,
     };
 
     let offset = 4;
@@ -431,7 +431,7 @@ fn mixed_matrix_f_col(v: &mut Vec<u8>) {
     let actually_len = v.len();
     let mut slen = match v.len() % MIXED_MATRIX_F_L {
         0 => actually_len,
-        _ => (actually_len / MIXED_MATRIX_F_L + 1) * MIXED_MATRIX_F_L
+        _ => (actually_len / MIXED_MATRIX_F_L + 1) * MIXED_MATRIX_F_L,
     };
 
     let offset = 4;
@@ -497,13 +497,14 @@ fn mixed_netfestival(v: &mut Vec<u8>) {
         false => v.len(),
     };
     for i in 1..v.len() + 1 {
-        if (i & 0x0f) == 0x01 ||
-            (i & 0x0f) == 0x02 ||
-            (i & 0x0f) == 0x06 ||
-            (i & 0x0f) == 0x08 ||
-            i % 6 == 0 ||
-            i % 8 == 0 ||
-            i % 12 == 0 {
+        if (i & 0x0f) == 0x01
+            || (i & 0x0f) == 0x02
+            || (i & 0x0f) == 0x06
+            || (i & 0x0f) == 0x08
+            || i % 6 == 0
+            || i % 8 == 0
+            || i % 12 == 0
+        {
             v[i - 1] ^= val as u8;
         }
     }
@@ -595,7 +596,8 @@ fn mixed_reversible_matrix(v: &mut Vec<u8>) {
         mixed_reversible_matrix_core1(
             &mut tmp,
             &v[i * MIXED_MATRIX_T_L..(i + 1) * MIXED_MATRIX_T_L].to_vec(),
-            &MIXED_MATRIX1);
+            &MIXED_MATRIX1,
+        );
         result.append(&mut tmp);
     }
     let result_len = result.len();
@@ -619,7 +621,8 @@ fn mixed_reverse_reversible_matrix(v: &mut Vec<u8>) {
         mixed_reversible_matrix_core2(
             &mut tmp,
             &v[i * MIXED_MATRIX_D_L + 4..(i + 1) * MIXED_MATRIX_D_L + 4].to_vec(),
-            &MIXED_MATRIX2);
+            &MIXED_MATRIX2,
+        );
         result.append(&mut tmp);
     }
     v.clear();
@@ -730,10 +733,9 @@ pub fn model_count() -> u32 {
 
 pub fn model_rand_choice() -> u32 {
     let mut rng = rand::thread_rng();
-    let result:u32 = rng.gen_range(0 .. model_count());
+    let result: u32 = rng.gen_range(0..model_count());
     result
 }
-
 
 #[cfg(test)]
 mod test {
