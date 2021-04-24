@@ -9,6 +9,8 @@ use std::ptr::null;
    报文中4字节存储数值采用大端序处理
 
    报文头|版本号|时间戳|混淆模式X|混淆模式Y|数据段混淆后长度|数据段混淆前长度|数据类型|数据|报文尾
+
+   AES:  KEY 32bit, IV 16bit
 */
 
 pub struct RespData {
@@ -74,15 +76,15 @@ pub fn common_pack(data: Vec<u8>, key: Vec<u8>, data_type: u8) -> Result<Vec<u8>
         // 业务数据 对称密钥
         let mut key_r = key.clone();
         key_r[0] = model_x as u8;
-        key_r[key.len()] = model_y as u8;
+        key_r[key.len() - 1] = model_y as u8;
         let mut encrypter = Crypter::new(
-            Cipher::aes_256_gcm(),
+            Cipher::aes_256_cbc(),
             Mode::Encrypt,
-            &key_r[0..24],
-            Some(&key_r[24..]),
+            &key_r[0..32],
+            Some(&key_r[32..]),
         )
         .unwrap();
-        let block_size = Cipher::aes_256_gcm().block_size();
+        let block_size = Cipher::aes_256_cbc().block_size();
         let mut ciphertext = vec![0; data.len() + block_size];
         let mut count = encrypter.update(data.as_slice(), &mut ciphertext).unwrap();
         count += encrypter.finalize(&mut ciphertext[count..]).unwrap();
@@ -124,20 +126,27 @@ pub fn common_unpack(data: Vec<u8>, key: Vec<u8>) -> Result<RespData, Error> {
     models::model_decrypt(&mut mixed_data, model_y as u32);
     models::model_decrypt(&mut mixed_data, model_x as u32);
 
+    if (data_len != mixed_data.len() as u32) {
+        return Err(Error::new(
+            ErrorKind::DATA_UNPACK_OLDDATA_NOMATCH,
+            "old data len not matched!",
+        ));
+    }
+
     if data_type == 1 || data_type == 2 {
         Ok(RespData::new(data_type, mixed_data))
     } else if data_type == 3 {
         let mut key_r = key.clone();
         key_r[0] = model_x as u8;
-        key_r[key.len()] = model_y as u8;
+        key_r[key.len() - 1] = model_y as u8;
         let mut encrypter = Crypter::new(
-            Cipher::aes_256_gcm(),
+            Cipher::aes_256_cbc(),
             Mode::Decrypt,
-            &key_r[0..24],
-            Some(&key_r[24..]),
+            &key_r[0..32],
+            Some(&key_r[32..]),
         )
         .unwrap();
-        let block_size = Cipher::aes_256_gcm().block_size();
+        let block_size = Cipher::aes_256_cbc().block_size();
         let mut ciphertext = vec![0; mixed_data.len() + block_size];
         let mut count = encrypter
             .update(mixed_data.as_slice(), &mut ciphertext)
@@ -201,6 +210,7 @@ mod test {
     use crate::mixed::models;
     use crate::mixed::security;
     use crate::mixed::security::{BytesConvert, RespData, U32Convert};
+    use openssl::symm::{Cipher, Crypter, Mode};
     use std::ptr::null;
 
     #[test]
@@ -230,10 +240,11 @@ mod test {
 
     #[test]
     fn pack() {
-        let v = vec![1, 2, 3, 4, 5, 6];
-        let v1 = security::common_pack(v.clone(), Vec::new(), 1).unwrap_or(Vec::new());
-        match security::common_unpack(v1, Vec::new()) {
-            Ok(data) => assert_eq!(v, data.data),
+        let data = vec![1, 2, 3, 4, 5, 6];
+        let key = vec![20; 48];
+        let v1 = security::common_pack(data.clone(), key.clone(), 3).unwrap_or(Vec::new());
+        match security::common_unpack(v1, key.clone()) {
+            Ok(data1) => assert_eq!(data, data1.data),
             Err(message) => println!("{}", message),
         }
     }

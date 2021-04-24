@@ -27,4 +27,5 @@ pub enum ErrorKind {
     DATAPACK,
     DATA_INVALID,
     DATATYPE,
+    DATA_UNPACK_OLDDATA_NOMATCH,
 }
