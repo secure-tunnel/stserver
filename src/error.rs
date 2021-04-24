@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+use std::fmt;
 
 pub struct Error {
     code: ErrorKind,
@@ -13,6 +15,16 @@ impl Error {
     }
 }
 
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.msg)?;
+
+        Ok(())
+    }
+}
+
 pub enum ErrorKind {
+    DATAPACK,
     DATA_INVALID,
+    DATATYPE,
 }
