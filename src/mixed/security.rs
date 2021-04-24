@@ -116,7 +116,10 @@ pub fn common_unpack(data: Vec<u8>, key: Vec<u8>) -> Result<RespData, Error> {
     if data_type == 1 || data_type == 2 {
         Ok(RespData::new(data_type, mixed_data))
     }else if data_type == 3 {
-        let mut encrypter = Crypter::new(Cipher::aes_256_gcm(), Mode::Decrypt, &key[0..24], Some(&key[24..])).unwrap();
+        let mut key_r = key.clone();
+        key_r[0] = model_x as u8;
+        key_r[key.len()] = model_y as u8;
+        let mut encrypter = Crypter::new(Cipher::aes_256_gcm(), Mode::Decrypt, &key_r[0..24], Some(&key_r[24..])).unwrap();
         let block_size = Cipher::aes_256_gcm().block_size();
         let mut ciphertext = vec![0; mixed_data.len() + block_size];
         let mut count = encrypter.update(mixed_data.as_slice(), &mut ciphertext).unwrap();
