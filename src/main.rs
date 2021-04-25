@@ -10,7 +10,6 @@ use std::borrow::Borrow;
 use std::convert::Infallible;
 use std::net::SocketAddr;
 
-
 #[tokio::main]
 async fn main() {
     // We'll bind to 127.0.0.1:3000
@@ -19,7 +18,9 @@ async fn main() {
     let make_svc = make_service_fn(move |socket: &AddrStream| {
         let remote_addr = socket.remote_addr();
         async move {
-            Ok::<_, Infallible>(service_fn(move | req: Request<Body>| data_process(remote_addr, req)))
+            Ok::<_, Infallible>(service_fn(move |req: Request<Body>| {
+                data_process(remote_addr, req)
+            }))
         }
     });
 
@@ -44,7 +45,7 @@ async fn data_process(
 
         let b = hyper::body::to_bytes(req).await;
         let b = Vec::from(b.unwrap().as_ref());
-        let resp = channel::tunnel_process(socket,&b);
+        let resp = channel::tunnel_process(socket, &b);
         Ok(Response::new(Body::from(resp)))
     } else {
         let mut response = Response::new("illegal request".into());

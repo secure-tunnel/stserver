@@ -13,14 +13,13 @@ pub fn tunnel_process(addr: SocketAddr, data: &Vec<u8>) -> Vec<u8> {
 
     if dataEntry.data_type == 1 {
         tunnel::tunnel_first(&dataEntry.content)
-    }else if dataEntry.data_type == 2 {
+    } else if dataEntry.data_type == 2 {
         // check dataEntry.token()
         let decrypt_data = dataEntry.decrypt();
-    }else {
+    } else {
         // check dataEntry.token()
         let decrypt_data = dataEntry.decrypt();
     }
 
     unimplemented!()
 }
-

@@ -1,6 +1,7 @@
-use openssl::symm::{Mode, Crypter, Cipher};
 use crate::error::Error;
-use mysql_async::chrono::{Local, Datelike, Timelike};
+use mysql_async::chrono::{Datelike, Local, Timelike};
+use openssl::rsa::{Padding, Rsa};
+use openssl::symm::{Cipher, Crypter, Mode};
 
 trait BytesConvert {
     fn to_u32(&self) -> u32;
@@ -66,6 +67,25 @@ pub fn aes_256_cbc(data: &Vec<u8>, key: &Vec<u8>, mode: Mode) -> Result<Vec<u8>,
     Ok(ciphertext)
 }
 
+pub fn rsa_publickey_encrypt(data: &Vec<u8>, publickey: &Vec<u8>) -> Result<Vec<u8>, Error> {
+    let rsa = Rsa::public_key_from_pem(publickey).unwrap();
+    let mut encrypted_data: Vec<u8> = vec![0; data.len()];
+    let len = rsa
+        .public_encrypt(data, encrypted_data.as_mut_slice(), Padding::PKCS1)
+        .unwrap();
+    encrypted_data.truncate(len);
+    Ok(encrypted_data)
+}
+
+pub fn rsa_privatekey_decrypt(data: &Vec<u8>, privatekey: &Vec<u8>) -> Result<Vec<u8>, Error> {
+    let rsa = Rsa::private_key_from_pem(privatekey).unwrap();
+    let mut encrypted_data: Vec<u8> = vec![0, data.len()];
+    let len = rsa
+        .private_decrypt(data, encrypted_data.as_mut_slice(), Padding::PKCS1)
+        .unwrap();
+    encrypted_data.truncate(len);
+    Ok(encrypted_data)
+}
 
 #[test]
 fn bytes_convert() {
