@@ -30,7 +30,7 @@ impl MemEntry {
     }
 }
 
-lazy_static! {
+lazy_static::lazy_static! {
     static ref HASHMAP: Mutex<HashMap<String, MemEntry>> = Mutex::new({
         let mut m = HashMap::new();
         m

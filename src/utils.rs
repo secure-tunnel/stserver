@@ -79,7 +79,7 @@ pub fn rsa_publickey_encrypt(data: &Vec<u8>, publickey: &Vec<u8>) -> Result<Vec<
 
 pub fn rsa_privatekey_decrypt(data: &Vec<u8>, privatekey: &Vec<u8>) -> Result<Vec<u8>, Error> {
     let rsa = Rsa::private_key_from_pem(privatekey).unwrap();
-    let mut encrypted_data: Vec<u8> = vec![0, data.len()];
+    let mut encrypted_data: Vec<u8> = vec![0; data.len()];
     let len = rsa
         .private_decrypt(data, encrypted_data.as_mut_slice(), Padding::PKCS1)
         .unwrap();

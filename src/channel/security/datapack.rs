@@ -195,7 +195,7 @@ mod test {
         let v1 = common_pack(&data, &key, 1, String::from_utf8(token).unwrap().as_str())
             .unwrap_or(Vec::new());
         match common_unpack(&v1) {
-            Ok(data1) => assert_eq!(data, data1.data),
+            Ok(data1) => assert_eq!(data, data1.content),
             Err(message) => println!("{}", message),
         }
     }

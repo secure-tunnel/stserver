@@ -16,12 +16,13 @@ use crate::utils;
 pub(crate) fn tunnel_first(data: &Vec<u8>) -> Vec<u8> {
     let unique_id = data[0..32].to_vec();
     // todo 根据唯一标识查询私钥KEY
-    let private_key = vec![];
+    let private_key = vec![0];
     let dec_data = utils::rsa_privatekey_decrypt(&data[32..].to_vec(), &private_key).unwrap();
     let random_a = dec_data[0..32].to_vec();
     let mac = dec_data[32..].to_vec();
     // todo create random B
-    let random_b = vec![];
+    let random_b = vec![0];
+    Vec::new()
 }
 
 /*
