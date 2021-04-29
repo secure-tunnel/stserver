@@ -682,24 +682,77 @@ fn mixed_movebit4(v: &mut Vec<u8>) {
     }
 }
 
+fn mixed_bitmove(v: &mut Vec<u8>) {
+    let mut rng = rand::thread_rng();
+    let movebit: u8 = rng.gen_range(1..8);
+    v.insert(0, movebit);
+    let len = v.len();
+    let mut temp: u8 = 0;
+    let mut suffix_bit: u8 = 0;
+    for i in 1..len {
+        temp = v[i];
+        v[i] = suffix_bit | (temp >> (8-movebit));
+        suffix_bit = temp << movebit;
+    }
+    v.insert(len,suffix_bit);
+}
+
+fn mixed_bitmove_reverse(v: &mut Vec<u8>) {
+    let movebit: u8 = v[0];
+    let mut temp: u8 = 0;
+    let mut suffix_bit = v[1] << (8-movebit);
+    let len = v.len();
+    for i in 0..len-2 {
+        temp = v[i+2];
+        v[i] = suffix_bit | (temp >> movebit);
+        suffix_bit = temp << (8-movebit);
+    }
+
+    v.truncate(len - 2);
+}
+
+fn mixed_bitmove_cycle(v: &mut Vec<u8>) {
+    let mut rng = rand::thread_rng();
+    let movebit: u8 = rng.gen_range(1..8);
+    v.insert(0, movebit);
+    let mut temp: u8 = 0;
+    for i in 1..v.len(){
+        temp = v[i];
+        v[i] = (temp << movebit) | (temp >> (8-movebit));
+    }
+}
+
+fn mixed_bitmove_cycle_reverse(v: &mut Vec<u8>) {
+    let movebit: u8 = v[0];
+    let mut temp: u8 = 0;
+    for i in 1..v.len() {
+        temp = v[i];
+        v[i-1] = (temp >> movebit) | ( temp << (8-movebit));
+    }
+
+    v.truncate(v.len() - 1);
+}
+
 // 所有加密模式关联编号
 pub fn model_encrypt(v: &mut Vec<u8>, model: u32) {
     match model {
-        1 => mixed_switchmodel(v),
-        2 => mixed_xor(v),
-        3 => mixed_matrix_t_refra(v),
-        4 => mixed_matrix_t_refra_re(v),
-        5 => mixed_matrix_t_row(v),
-        6 => mixed_matrix_t_col(v),
-        7 => mixed_matrix_f_refra(v),
-        8 => mixed_matrix_f_refra_re(v),
-        9 => mixed_matrix_f_row(v),
-        10 => mixed_matrix_f_col(v),
-        11 => mixed_netfestival(v),
-        12 => mixed_movebit(v),
-        13 => mixed_movebit2(v),
-        14 => mixed_movebit3(v),
-        15 => mixed_movebit4(v),
+        0 => mixed_switchmodel(v),
+        1 => mixed_matrix_t_refra(v),
+        2 => mixed_matrix_t_refra_re(v),
+        3 => mixed_matrix_t_row(v),
+        4 => mixed_matrix_t_col(v),
+        5 => mixed_matrix_f_refra(v),
+        6 => mixed_matrix_f_refra_re(v),
+        7 => mixed_matrix_f_row(v),
+        8 => mixed_matrix_f_col(v),
+        9 => mixed_xor(v),
+        10 => mixed_netfestival(v),
+        11 => mixed_movebit(v),
+        12 => mixed_movebit2(v),
+        13 => mixed_movebit3(v),
+        14 => mixed_movebit4(v),
+        15 => mixed_bitmove(v),
+        16 => mixed_bitmove_cycle(v),
         _ => unimplemented!(),
     };
 }
@@ -707,28 +760,30 @@ pub fn model_encrypt(v: &mut Vec<u8>, model: u32) {
 // 所有加密模式关联编号
 pub fn model_decrypt(v: &mut Vec<u8>, model: u32) {
     match model {
-        1 => mixed_switchmodel(v),
-        2 => mixed_xor(v),
-        3 => mixed_reverse_matrix_t_refra(v),
-        4 => mixed_reverse_matrix_t_refra_re(v),
-        5 => mixed_reverse_matrix_t_row(v),
-        6 => mixed_reverse_matrix_t_col(v),
-        7 => mixed_reverse_matrix_f_refra(v),
-        8 => mixed_reverse_matrix_f_refra_re(v),
-        9 => mixed_reverse_matrix_f_row(v),
-        10 => mixed_reverse_matrix_f_col(v),
-        11 => mixed_netfestival(v),
-        12 => mixed_movebit(v),
-        13 => mixed_reverse_movebit2(v),
-        14 => mixed_movebit3(v),
-        15 => mixed_movebit4(v),
+        0 => mixed_switchmodel(v),
+        1 => mixed_reverse_matrix_t_refra(v),
+        2 => mixed_reverse_matrix_t_refra_re(v),
+        3 => mixed_reverse_matrix_t_row(v),
+        4 => mixed_reverse_matrix_t_col(v),
+        5 => mixed_reverse_matrix_f_refra(v),
+        6 => mixed_reverse_matrix_f_refra_re(v),
+        7 => mixed_reverse_matrix_f_row(v),
+        8 => mixed_reverse_matrix_f_col(v),
+        9 => mixed_xor(v),
+        10 => mixed_netfestival(v),
+        11 => mixed_movebit(v),
+        12 => mixed_reverse_movebit2(v),
+        13 => mixed_movebit3(v),
+        14 => mixed_movebit4(v),
+        15 => mixed_bitmove_reverse(v),
+        16 => mixed_bitmove_cycle_reverse(v),
         _ => unimplemented!(),
     };
 }
 
 // 返回目前有多少模式
 pub fn model_count() -> u32 {
-    15
+    17
 }
 
 pub fn model_rand_choice() -> u32 {
@@ -743,75 +798,15 @@ mod test {
     use std::sync::Arc;
 
     #[test]
-    fn switchmodel() {
-        let mut v: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7];
-        mixed_switchmodel(&mut v);
-        assert_eq!(v[0], 7);
-        assert_eq!(v[3], 4);
-        let mut v: Vec<u8> = vec![1, 2, 3, 4, 5, 6];
-        mixed_switchmodel(&mut v);
-        assert_eq!(v[0], 6);
-        assert_eq!(v[2], 4);
+    fn encrypt_and_decrypt() {
+        let mut v: Vec<u8> = vec![25,52,1,2,3,4,5,6,7,8,9,10,1,1,1,1,3,5,3,5,67,2,43];
+        let vc = v.clone();
+        for i in 0..model_count() {
+            println!("{}", i);
+            model_encrypt(&mut v, i);
+            model_decrypt(&mut v, i);
+            assert_eq!(vc, v);
+        }
     }
 
-    #[test]
-    fn mixed_xor_t() {
-        let mut v: Vec<u8> = vec![1, 2, 3, 4, 5];
-        mixed_xor(&mut v);
-        assert_eq!(v[0], 1 ^ 0x39);
-    }
-
-    #[test]
-    fn mixed_matrix_t_refra_t() {
-        let mut v: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8];
-        mixed_matrix_t_refra(&mut v);
-        println!("middle vector: {:?}", v);
-        mixed_reverse_matrix_t_refra(&mut v);
-        assert_eq!(v, vec![1, 2, 3, 4, 5, 6, 7, 8]);
-    }
-
-    #[test]
-    fn mixed_matrix_t_refra_re_t() {
-        let mut v: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8];
-        mixed_matrix_t_refra_re(&mut v);
-        println!("middle vector: {:?}", v);
-        mixed_reverse_matrix_t_refra_re(&mut v);
-        assert_eq!(v, vec![1, 2, 3, 4, 5, 6, 7, 8]);
-    }
-
-    #[test]
-    fn mixed_reversible_matrix_t() {
-        let mut v = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        let v_snap = v.clone();
-        mixed_reversible_matrix(&mut v);
-        mixed_reverse_reversible_matrix(&mut v);
-        assert_eq!(v, v_snap);
-    }
-
-    #[test]
-    fn mixed_movebit2_t() {
-        let mut v = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        let v_snap = v.clone();
-        mixed_movebit2(&mut v);
-        mixed_reverse_movebit2(&mut v);
-        assert_eq!(v, v_snap);
-    }
-
-    #[test]
-    fn mixed_movebit3_t() {
-        let mut v = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        let v_snap = v.clone();
-        mixed_movebit3(&mut v);
-        mixed_movebit3(&mut v);
-        assert_eq!(v, v_snap);
-    }
-
-    #[test]
-    fn mixed_movebit4_t() {
-        let mut v = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        let v_snap = v.clone();
-        mixed_movebit4(&mut v);
-        mixed_movebit4(&mut v);
-        assert_eq!(v, v_snap);
-    }
 }

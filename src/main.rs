@@ -13,7 +13,7 @@ use std::net::SocketAddr;
 #[tokio::main]
 async fn main() {
     // We'll bind to 127.0.0.1:3000
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let addr = SocketAddr::from(([192, 168, 31, 192], 8080));
 
     let make_svc = make_service_fn(move |socket: &AddrStream| {
         let remote_addr = socket.remote_addr();
@@ -48,6 +48,7 @@ async fn data_process(
         let resp = channel::tunnel_process(socket, &b);
         Ok(Response::new(Body::from(resp)))
     } else {
+        println!("illegal request");
         let mut response = Response::new("illegal request".into());
         *response.status_mut() = StatusCode::NOT_ACCEPTABLE;
         Ok(response)

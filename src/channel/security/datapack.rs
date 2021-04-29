@@ -67,12 +67,12 @@ fn common_pack_core(
     let total_len = 1 + 1 + 7 + 1 + 1 + 4 + 4 + 1 + 40 + 1 + encrypted_data.len() + 1;
     let mut res = vec![0; total_len];
     res[0] = 0xF0;
-    res[1] = 0x01;
+    res[1] = 0x00;
     res[2..9].copy_from_slice(utils::current_timestamp().as_slice());
-    res[9] = model_x as u8;
-    res[10] = model_y as u8;
-    res[11..15].copy_from_slice(utils::u32_to_vector(encrypted_data.len() as u32).as_slice());
-    res[15..19].copy_from_slice(utils::u32_to_vector(data.len() as u32).as_slice());
+    res[9..13].copy_from_slice(utils::u32_to_vector(encrypted_data.len() as u32).as_slice());
+    res[13..17].copy_from_slice(utils::u32_to_vector(data.len() as u32).as_slice());
+    res[17] = model_x as u8;
+    res[18] = model_y as u8;
     res[19] = data_type;
     res[20..60].copy_from_slice(token.as_bytes());
     res[60] = mixed_flag;
@@ -125,17 +125,17 @@ pub fn common_pack(
 pub fn common_unpack(data: &Vec<u8>) -> Result<DataEntry, Error> {
     if data.is_empty()
         || data[0] != 0xF0
-        || data[1] != 0x01
+        || data[1] != 0x00
         || data[data.len() - 1] != 0xFE
         || data.len() <= 62
     {
         return Err(Error::new(ErrorKind::DATA_INVALID, "data check failed!"));
     }
 
-    let model_x = data[9];
-    let model_y = data[10];
-    let enc_data_len = utils::u8_array_to_u32(&data[11..15]);
-    let data_len = utils::u8_array_to_u32(&data[15..19]);
+    let enc_data_len = utils::u8_array_to_u32(&data[9..13]);
+    let data_len = utils::u8_array_to_u32(&data[13..17]);
+    let model_x = data[17];
+    let model_y = data[18];
     let data_type = data[19];
     if (enc_data_len + 62 != data.len() as u32) {
         return Err(Error::new(ErrorKind::DATA_INVALID, "data len not matched!"));
