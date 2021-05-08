@@ -1,2 +1,2 @@
 # scw
-security channel webserver
+security tunnel server
