@@ -1,2 +1,2 @@
-# scw
-security tunnel server
+# stserver
+secure tunnel server
