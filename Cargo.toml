@@ -11,3 +11,8 @@ openssl="0.10.33"
 rand="0.8.3"
 hyper = { version = "0.14", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
+mysql_async="0.27.1"
+redis = { version = "0.17.0", features = [ "cluster", "tokio-comp"] }
+tower-service = "0.3.1"
+lazy_static = "1.4.0"
+libsm = "0.3.0"

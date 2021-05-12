@@ -1,2 +1,2 @@
-# stserver
-secure tunnel server
+# scw
+security channel webserver
