@@ -25,5 +25,5 @@ pub fn tunnel_process(addr: SocketAddr, data: &Vec<u8>) -> Vec<u8> {
     //     let decrypt_data = dataEntry.decrypt();
     // }
 
-    unimplemented!()
+   vec![]
 }

@@ -1,5 +1,5 @@
 [package]
-name = "scw"
+name = "stserver"
 version = "0.1.0"
 authors = ["Weihua Liu <auhiewuil@gmail.com>"]
 edition = "2018"
