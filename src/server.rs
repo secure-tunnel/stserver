@@ -103,7 +103,8 @@ fn read(tx: Sender<Vec<u8>>, mut reader: ReadHalf<TlsStream<TcpStream>>, peer_ad
                 let tx = tx.clone();
                 let content = content.clone();
                 tokio::spawn(async move {
-                    channel::tunnel_process(tx, &peer_addr, content);
+                    let response = channel::tunnel_process(&peer_addr, content);
+                    tx.send(response).unwrap();
                     Ok(()) as io::Result<()>
                 });
             }

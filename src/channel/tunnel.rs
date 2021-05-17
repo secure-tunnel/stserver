@@ -13,7 +13,7 @@ use crate::utils;
 /*
    处理协商第一个请求
 */
-pub(crate) fn tunnel_first(data: &Vec<u8>) -> Vec<u8> {
+pub fn tunnel_first(data: &Vec<u8>) -> Vec<u8> {
     let unique_id = data[0..32].to_vec();
     // todo 根据唯一标识查询私钥KEY
     let private_key = vec![0];

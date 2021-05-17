@@ -1,7 +1,6 @@
 use super::models;
 use crate::error::{Error, ErrorKind};
 use crate::utils;
-use hyper::Response;
 use mysql_async::chrono::{Datelike, Local, Timelike};
 use openssl::symm::{Cipher, Crypter, Mode};
 use std::ptr::null;
