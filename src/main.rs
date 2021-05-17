@@ -14,5 +14,5 @@ use crate::server::Server;
 #[tokio::main]
 async fn main() {
     let server = Server::new("0.0.0.0:443");
-    server::run(&server);
+    server::run(&server).await;
 }

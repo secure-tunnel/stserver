@@ -1,13 +1,27 @@
-use std::net::{TcpListener, TcpStream};
 use openssl::ssl::{SslAcceptor, SslMethod, SslFiletype, SslStream};
-use std::sync::Arc;
+use std::sync::{Arc, mpsc, Mutex};
 use std::error::Error;
-use std::io::Read;
+use std::io::{Read, Write, BufReader};
 use std::thread::sleep;
 use std::time::Duration;
-use std::thread;
+use std::{thread, io};
 use crate::utils;
 use crate::channel;
+use std::sync::mpsc::{Receiver, Sender};
+use std::borrow::Borrow;
+use std::rc::Rc;
+use std::ops::Deref;
+use std::cell::RefCell;
+use tokio_rustls::rustls::{ServerConfig, NoClientAuth, Certificate, PrivateKey};
+use std::path::{PathBuf, Path};
+use std::fs::File;
+use tokio_rustls::{TlsAcceptor};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::io::{split, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf};
+use tokio_rustls::rustls::internal::pemfile::{certs, rsa_private_keys};
+use tokio_rustls::server::TlsStream;
+use tokio::task::JoinHandle;
+use std::net::SocketAddr;
 
 pub struct Server {
     ipaddr: String,
@@ -22,66 +36,104 @@ impl Server {
     }
 }
 
-pub fn run(server: &Server) {
-    let listener = TcpListener::bind(server.ipaddr.as_str()).unwrap();
-    let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
-    acceptor.set_private_key_file("test/server_key.pem", SslFiletype::PEM).unwrap();
-    acceptor.set_certificate_chain_file("test/server_cert.pem").unwrap();
-    acceptor.check_private_key().unwrap();
-    let acceptor = Arc::new(acceptor.build());
+fn load_certs(path: &Path) -> io::Result<Vec<Certificate>> {
+    certs(&mut BufReader::new(File::open(path)?))
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "Invalid cert"))
+}
 
-    loop {
-        let (socket, _) = listener.accept().unwrap();
+fn load_keys(path: &Path) -> io::Result<Vec<PrivateKey>> {
+    rsa_private_keys(&mut BufReader::new(File::open(path)?))
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "Invalid key"))
+}
+
+pub async fn run(server: &Server) -> io::Result<()> {
+
+    let mut config = ServerConfig::new(NoClientAuth::new());
+    let certs = load_certs(Path::new("test/server_cert.pem"))?;
+    let mut keys = load_keys(Path::new("test/server_key.pem"))?;
+    config.set_single_cert(certs, keys.remove(0))
+        .map_err(|err|io::Error::new(io::ErrorKind::InvalidInput, err))?;
+    let acceptor = TlsAcceptor::from(Arc::new(config));
+    let listener = TcpListener::bind(server.ipaddr.as_str()).await?;
+    loop{
+        let (stream, peer_addr) = listener.accept().await?;
         let acceptor = acceptor.clone();
-        thread::spawn(move || {
-            let stream = acceptor.accept(socket).unwrap();
-            process(stream);
+
+        let fut = async move {
+            let mut stream = acceptor.accept(stream).await?;
+            let (mut reader, mut writer) = split(stream);
+            let (tx, rx) : (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
+            read(tx, reader, peer_addr);
+            write(rx, writer);
+            Ok(()) as io::Result<()>
+        };
+        tokio::spawn(async move {
+           if let Err(err) = fut.await{
+               eprintln!("{:?}", err);
+           }
         });
     }
 }
 
-fn process(mut stream: SslStream<TcpStream>) {
-    let buffer_size = 1024;
-    let mut content: Vec<u8> = vec![];
-    let mut request_len = 0usize;
-    let mut tcp_stream = stream.get_mut();
-    let sockaddr = tcp_stream.peer_addr().unwrap();
-    loop {
-        let mut buffer: Vec<u8> = vec![0; buffer_size];
-        match stream.ssl_read(&mut buffer) {
-            Ok(n) => {
-                if n == 0 {
+fn read(tx: Sender<Vec<u8>>, mut reader: ReadHalf<TlsStream<TcpStream>>, peer_addr: SocketAddr) -> JoinHandle<tokio::io::Result<()>> {
+    tokio::spawn(async move {
+        let mut content = vec![];
+        let mut content_len = 0usize;
+        loop {
+            println!("read...");
+            let mut buffer: Vec<u8> = vec![0; 1024];
+            let n = match reader.read(&mut buffer).await {
+                Ok(n) => n,
+                Err(e) => break,
+            };
+            content.append(&mut buffer[0..n].to_vec());
+            // split package 62+content
+            // 如果不是f0开头，则找到下一个f0开头的值，并清除之前的垃圾数据
+            if content[0] != 0xF0 {
+                content = find_next_f0(&content);
+                if content.len() == 0 {
                     continue;
-                } else {
-                    request_len += n;
-                    // 将数据拷贝到content，继续读
-                    content.append(&mut buffer[0..n].to_vec());
                 }
             }
-            _ => {
-                println!("ssl_read error");
-                break;
-            }
-        }
-        // split package 62+content
-        if content.len() == 0 {
-            continue;
-        }
-        // 如果不是f0开头，则找到下一个f0开头的值，并清除之前的垃圾数据
-        if content[0] != 0xF0 {
-            content = find_next_f0(&content);
-            if content.len() == 0 {
+            let data_length = utils::u8_array_to_u32(&content[9..13]);
+            if content.len() < data_length as usize {
                 continue;
             }
+            if content[(61 + data_length) as usize] == 0xFE {
+                let tx = tx.clone();
+                let content = content.clone();
+                tokio::spawn(async move {
+                    channel::tunnel_process(tx, &peer_addr, content);
+                    Ok(()) as io::Result<()>
+                });
+            }
         }
-        let data_length = utils::u8_array_to_u32(&content[9..13]);
-        if content.len() < data_length as usize {
-            continue;
+        drop(tx);
+        Ok(()) as io::Result<()>
+    })
+}
+
+fn write(rx: Receiver<Vec<u8>>, mut writer: WriteHalf<TlsStream<TcpStream>>) -> JoinHandle<tokio::io::Result<()>> {
+    tokio::spawn(async move {
+        loop{
+            println!("write....");
+            let data : Vec<u8> = match rx.recv() {
+                Ok(data) => data,
+                Err(_) =>
+                    break,
+            };
+            // TODO if rx equals zero
+            if data.is_empty() {
+                sleep(Duration::from_millis(100));
+                continue;
+            }
+            println!("data: {:?}", data);
+            writer.write(data.as_slice()).await;
         }
-        if content[(61 + data_length) as usize] == 0xFE {
-            stream.ssl_write(channel::tunnel_process(sockaddr, &content).as_slice());
-        }
-    }
+        drop(rx);
+        Ok(()) as io::Result<()>
+    })
+
 }
 
 /*
