@@ -2,8 +2,6 @@ use crate::error::Error;
 use mysql_async::chrono::{Datelike, Local, Timelike};
 use openssl::rsa::{Padding, Rsa};
 use openssl::symm::{Cipher, Crypter, Mode};
-use openssl_sys::{EVP_sm3, EVP_MD_CTX, EVP_MD_CTX_new, EVP_DigestInit_ex, EVP_md_null, EVP_DigestUpdate, ENGINE, EVP_DigestFinal_ex, EVP_MD_CTX_free};
-use std::os::raw::{c_uint, c_uchar, c_ulong};
 
 trait BytesConvert {
     fn to_u32(&self) -> u32;
@@ -89,67 +87,24 @@ pub fn rsa_privatekey_decrypt(data: &Vec<u8>, privatekey: &Vec<u8>) -> Result<Ve
     Ok(encrypted_data)
 }
 
-pub struct SM3{}
+#[cfg(test)]
+mod test {
+    use super::*;
 
-impl SM3 {
-    pub fn hash(data: &Vec<u8>) -> Vec<u8> {
-        let mut res = vec![0, 64].into_boxed_slice();
-        let mut res_len: u32 = 0;
-        unsafe {
-            let md = EVP_sm3();
-            let mut md_ctx = EVP_MD_CTX_new();
-            let mut engine = ENGINE{};
-            EVP_DigestInit_ex(md_ctx, md, *engine);
-            EVP_DigestUpdate(md_ctx, data.as_ptr(), data.len());
-            EVP_DigestFinal_ex(md_ctx, res.as_mut_ptr(), *res_len);
-            EVP_MD_CTX_free(md_ctx);
-        }
-        res.to_vec()
+    #[test]
+    fn bytes_convert() {
+        let v: Vec<u8> = vec![1, 2, 3, 4];
+        assert_eq!(v[0..4].to_u32(), 0b00000001000000100000001100000100);
+        let t: u32 = 0b00000001000000100000001100000100;
+        assert_eq!(t.to_vector(), v);
     }
+
+    #[test]
+    fn current_timestamp1() {
+        let v = current_timestamp();
+        println!("{:#?}", v);
+    }
+
 }
 
-pub struct SM4 {}
 
-impl SM4 {
-    pub fn encrypt(data: &Vec<u8>, key: &Vec<u8>, iv: &Vec<u8>) -> Vec<u8> {
-        vec![]
-    }
-
-    pub fn decrypt(data: &Vec<u8>, key: &Vec<u8>, iv: &Vec<u8>) -> Vec<u8> {
-        unimplemented!()
-    }
-}
-
-pub struct SM2{}
-
-impl SM2 {
-    pub fn encrypt(data: &Vec<u8>, pubKey: &Vec<u8>) -> Result<Vec<u8>, Error> {
-        unimplemented!()
-    }
-
-    pub fn decrypt(data: &Vec<u8>, priKey: &Vec<u8>) -> Result<Vec<u8>, Error> {
-        unimplemented!()
-    }
-
-    pub fn sign(data: &Vec<u8>, priKey: &Vec<u8>) -> Result<Vec<u8>, Error> {
-        unimplemented!()
-    }
-
-    pub fn verify(data: &Vec<u8>, oldData: &Vec<u8>, pubKey: &Vec<u8>) -> Result<Vec<u8>, Error> {
-        unimplemented!()
-    }
-}
-
-#[test]
-fn bytes_convert() {
-    let v: Vec<u8> = vec![1, 2, 3, 4];
-    assert_eq!(v[0..4].to_u32(), 0b00000001000000100000001100000100);
-    let t: u32 = 0b00000001000000100000001100000100;
-    assert_eq!(t.to_vector(), v);
-}
-
-#[test]
-fn current_timestamp1() {
-    let v = current_timestamp();
-    println!("{:#?}", v);
-}
