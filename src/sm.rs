@@ -16,6 +16,14 @@ extern "C" {
 
     pub fn EVP_PKEY_set1_EC_KEY(pkey: *mut EVP_PKEY, key: *mut EC_KEY) -> c_int;
     pub fn EVP_PKEY_set_alias_type(pkey: *mut EVP_PKEY, ttype: c_int) -> c_int;
+
+    pub fn EVP_MD_CTX_init(ctx: *mut EVP_MD_CTX);
+    pub fn EVP_VerifyInit_ex(ctx: *mut EVP_MD_CTX, ttype: *const EVP_MD, imple: *const c_uchar) -> c_int;
+    pub fn EVP_VerifyUpdate(ctx: *mut EVP_MD_CTX, d: *const c_uchar, cnt: size_t) ->  c_int;
+    pub fn EVP_VerifyFinal(ctx: *mut EVP_MD_CTX, sigbuf: *const c_uchar, siglen: size_t, pkey: *mut EVP_PKEY) -> c_int;
+    pub fn EVP_SignInit_ex(ctx: *mut EVP_MD_CTX, ttype: *const EVP_MD, imple: *const c_uchar) -> c_int;
+    pub fn EVP_SignUpdate(ctx: *mut EVP_MD_CTX, d: *const c_uchar, cnt: size_t) -> c_int;
+    pub fn EVP_SignFinal(ctx: *mut EVP_MD_CTX, sig: *mut c_uchar, s: *mut c_int, pkey: *mut EVP_PKEY) -> c_int;
 }
 
 pub struct SM3 {}
@@ -244,11 +252,52 @@ impl SM2 {
     }
 
     pub fn sign(data: &Vec<u8>, priKey: &Vec<u8>) -> Result<Vec<u8>, String> {
-        unimplemented!()
+        let mut r = vec![];
+        unsafe{
+            let mut pkey = match SM2::create_evp_pkey(priKey, false) {
+                Ok(evp_key) => evp_key,
+                Err(e) => return Err(e),
+            };
+            EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2);
+            let mut evpMdCtx: *mut EVP_MD_CTX = EVP_MD_CTX_new();
+            EVP_MD_CTX_init(evpMdCtx);
+            if EVP_SignInit_ex(evpMdCtx, EVP_sm3(), ptr::null_mut()) != 1 {
+                return Err(String::from(""));
+            }
+            if EVP_SignUpdate(evpMdCtx, data.as_ptr(), data.len()) != 1 {
+                return Err(String::from(""));
+            }
+            let len_sig: *mut size_t = Box::into_raw(Box::new(0));
+            // if EVP_SignFinal(evpMdCtx,  
+        }
+        
+
+        Ok(r)
     }
     
-    pub fn verify(data: &Vec<u8>, oldData: &Vec<u8>, pubKey: &Vec<u8>) -> Result<Vec<u8>, String> {
-        unimplemented!()
+    pub fn verify(data: &Vec<u8>, oldData: &Vec<u8>, pubKey: &Vec<u8>) -> Result<bool, String> {
+        unsafe {
+            let evp_key = match SM2::create_evp_pkey(pubKey, true) {
+                Ok(evp_key) => evp_key,
+                Err(e) => return Err(e),
+            };
+            EVP_PKEY_set_alias_type(evp_key, EVP_PKEY_SM2);
+            let mut evpMdCtx: *mut EVP_MD_CTX = EVP_MD_CTX_new();
+            EVP_MD_CTX_init(evpMdCtx);
+            if EVP_VerifyInit_ex(evpMdCtx, EVP_sm3(), ptr::null_mut()) != 1  {
+                return Err(String::from(""));
+            }
+            if EVP_VerifyUpdate(evpMdCtx, oldData.as_ptr(), oldData.len()) != 1 {
+                return Err(String::from(""));
+            }
+            if EVP_VerifyFinal(evpMdCtx, data.as_ptr(), data.len(), evp_key) != 1 {
+                return Err(String::from(""));
+            }
+            
+            EVP_PKEY_free(evp_key);
+            EVP_MD_CTX_free(evpMdCtx);
+        }
+        Ok(true)
     }
 }
 
