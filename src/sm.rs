@@ -14,8 +14,8 @@ extern "C" {
     pub fn EVP_sm4_ofb() -> *const EVP_CIPHER;
     pub fn EVP_sm4_ctr() -> *const EVP_CIPHER;
 
-    pub fn EVP_PKEY_set1_EC_KEY(pkey: *mut *mut EVP_PKEY, key: *const EC_KEY) -> c_int;
-    pub fn EVP_PKEY_set_alias_type(pkey: *mut *mut EVP_PKEY, ttype: c_int) -> c_int;
+    pub fn EVP_PKEY_set1_EC_KEY(pkey: *mut EVP_PKEY, key: *mut EC_KEY) -> c_int;
+    pub fn EVP_PKEY_set_alias_type(pkey: *mut EVP_PKEY, ttype: c_int) -> c_int;
 }
 
 pub struct SM3 {}
@@ -137,12 +137,11 @@ impl SM2 {
             let pem_passwd_cb  = Option::None;
             if is_pub {
                 let ec_key = PEM_read_bio_EC_PUBKEY(keybio, &mut ec_key, pem_passwd_cb, userdata);
-                println!("test");
                 if ec_key == ptr::null_mut() {
                     BIO_free_all(keybio);
                     return Err(String::from("PEM_read_bio_EC_PUBKEY failed"));
                 }
-                if EVP_PKEY_set1_EC_KEY(&mut evp_key, ec_key) != 1 {
+                if EVP_PKEY_set1_EC_KEY(evp_key, ec_key) != 1 {
                     EC_KEY_free(ec_key);
                     BIO_free_all(keybio);
                     return Err(String::from("EVP_KEY_set1_EC_KEY failed"));
@@ -159,7 +158,7 @@ impl SM2 {
                     BIO_free_all(keybio);
                     return Err(String::from("PEM_read_bio_ECPrivateKey failed"));
                 }
-                if EVP_PKEY_set1_EC_KEY(&mut evp_key, ec_key) != 1 {
+                if EVP_PKEY_set1_EC_KEY(evp_key, ec_key) != 1 {
                     EC_KEY_free(ec_key);
                     BIO_free_all(keybio);
                     return Err(String::from("EVP_KEY_set1_EC_KEY failed"));
@@ -177,13 +176,12 @@ impl SM2 {
         let mut r = vec![];
         unsafe {
             let ciphertext_len: *mut size_t = Box::into_raw(Box::new(0));
-            let mut cipher_text = vec![0; *ciphertext_len].into_boxed_slice();
-            let mut pkey = match SM2::create_evp_pkey(pubKey, true) {
+            let evp_key = match SM2::create_evp_pkey(pubKey, true) {
                 Ok(evp_key) => evp_key,
                 Err(e) => return Err(e),
             };
-            EVP_PKEY_set_alias_type(&mut pkey, EVP_PKEY_SM2);
-            let ectx = EVP_PKEY_CTX_new(pkey, ptr::null_mut());
+            EVP_PKEY_set_alias_type(evp_key, EVP_PKEY_SM2);
+            let ectx = EVP_PKEY_CTX_new(evp_key, ptr::null_mut());
             EVP_PKEY_encrypt_init(ectx);
             EVP_PKEY_encrypt(
                 ectx,
@@ -192,7 +190,8 @@ impl SM2 {
                 data.as_ptr(),
                 data.len(),
             );
-
+            // 应该在长度初始化之后再定义cipherText大小
+            let mut cipher_text = vec![0; *ciphertext_len].into_boxed_slice();
             EVP_PKEY_encrypt(
                 ectx,
                 cipher_text.as_mut_ptr(),
@@ -200,7 +199,7 @@ impl SM2 {
                 data.as_ptr(),
                 data.len(),
             );
-            EVP_PKEY_free(pkey);
+            EVP_PKEY_free(evp_key);
             EVP_PKEY_CTX_free(ectx);
             r = cipher_text.to_vec();
         }
@@ -211,12 +210,12 @@ impl SM2 {
         let mut r = vec![];
         unsafe {
             let ciphertext_len: *mut size_t = Box::into_raw(Box::new(0));
-            let mut cipher_text = vec![0; *ciphertext_len].into_boxed_slice();
+            
             let mut pkey = match SM2::create_evp_pkey(priKey, false) {
                 Ok(evp_key) => evp_key,
                 Err(e) => return Err(e),
             };
-            EVP_PKEY_set_alias_type(&mut pkey, EVP_PKEY_SM2);
+            EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2);
             let ectx = EVP_PKEY_CTX_new(pkey, ptr::null_mut());
             EVP_PKEY_decrypt_init(ectx);
             EVP_PKEY_decrypt(
@@ -226,7 +225,7 @@ impl SM2 {
                 data.as_ptr(),
                 data.len(),
             );
-
+            let mut cipher_text = vec![0; *ciphertext_len].into_boxed_slice();
             EVP_PKEY_decrypt(
                 ectx,
                 cipher_text.as_mut_ptr(),
@@ -236,7 +235,10 @@ impl SM2 {
             );
             EVP_PKEY_free(pkey);
             EVP_PKEY_CTX_free(ectx);
-            r = cipher_text.to_vec();
+            // 处理返回值的长度
+            let mut result_vec=  cipher_text.to_vec();
+            result_vec.truncate(*ciphertext_len);
+            r = result_vec;
         }
         Ok(r)
     }
