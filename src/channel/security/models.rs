@@ -691,21 +691,21 @@ fn mixed_bitmove(v: &mut Vec<u8>) {
     let mut suffix_bit: u8 = 0;
     for i in 1..len {
         temp = v[i];
-        v[i] = suffix_bit | (temp >> (8-movebit));
+        v[i] = suffix_bit | (temp >> (8 - movebit));
         suffix_bit = temp << movebit;
     }
-    v.insert(len,suffix_bit);
+    v.insert(len, suffix_bit);
 }
 
 fn mixed_bitmove_reverse(v: &mut Vec<u8>) {
     let movebit: u8 = v[0];
     let mut temp: u8 = 0;
-    let mut suffix_bit = v[1] << (8-movebit);
+    let mut suffix_bit = v[1] << (8 - movebit);
     let len = v.len();
-    for i in 0..len-2 {
-        temp = v[i+2];
+    for i in 0..len - 2 {
+        temp = v[i + 2];
         v[i] = suffix_bit | (temp >> movebit);
-        suffix_bit = temp << (8-movebit);
+        suffix_bit = temp << (8 - movebit);
     }
 
     v.truncate(len - 2);
@@ -716,9 +716,9 @@ fn mixed_bitmove_cycle(v: &mut Vec<u8>) {
     let movebit: u8 = rng.gen_range(1..8);
     v.insert(0, movebit);
     let mut temp: u8 = 0;
-    for i in 1..v.len(){
+    for i in 1..v.len() {
         temp = v[i];
-        v[i] = (temp << movebit) | (temp >> (8-movebit));
+        v[i] = (temp << movebit) | (temp >> (8 - movebit));
     }
 }
 
@@ -727,7 +727,7 @@ fn mixed_bitmove_cycle_reverse(v: &mut Vec<u8>) {
     let mut temp: u8 = 0;
     for i in 1..v.len() {
         temp = v[i];
-        v[i-1] = (temp >> movebit) | ( temp << (8-movebit));
+        v[i - 1] = (temp >> movebit) | (temp << (8 - movebit));
     }
 
     v.truncate(v.len() - 1);
@@ -799,7 +799,9 @@ mod test {
 
     #[test]
     fn encrypt_and_decrypt() {
-        let mut v: Vec<u8> = vec![25,52,1,2,3,4,5,6,7,8,9,10,1,1,1,1,3,5,3,5,67,2,43];
+        let mut v: Vec<u8> = vec![
+            25, 52, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 1, 1, 1, 3, 5, 3, 5, 67, 2, 43,
+        ];
         let vc = v.clone();
         for i in 0..model_count() {
             println!("{}", i);
@@ -808,5 +810,4 @@ mod test {
             assert_eq!(vc, v);
         }
     }
-
 }
