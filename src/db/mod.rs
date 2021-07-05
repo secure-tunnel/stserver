@@ -1,2 +1,2 @@
-pub mod mem;
 pub mod cache;
+pub mod mem;

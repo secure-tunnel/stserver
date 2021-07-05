@@ -142,7 +142,7 @@ impl SM2 {
             if keybio == ptr::null_mut() {
                 return Err(String::from("BIO_new_mem_buf failed."));
             }
-            let pem_passwd_cb  = Option::None;
+            let pem_passwd_cb = Option::None;
             if is_pub {
                 let ec_key = PEM_read_bio_EC_PUBKEY(keybio, &mut ec_key, pem_passwd_cb, userdata);
                 if ec_key == ptr::null_mut() {
@@ -156,12 +156,8 @@ impl SM2 {
                 }
                 EC_KEY_free(ec_key);
             } else {
-                let ec_key = PEM_read_bio_ECPrivateKey(
-                    keybio,
-                    &mut ec_key,
-                    pem_passwd_cb,
-                    userdata,
-                );
+                let ec_key =
+                    PEM_read_bio_ECPrivateKey(keybio, &mut ec_key, pem_passwd_cb, userdata);
                 if ec_key == ptr::null_mut() {
                     BIO_free_all(keybio);
                     return Err(String::from("PEM_read_bio_ECPrivateKey failed"));
@@ -177,7 +173,6 @@ impl SM2 {
 
             Ok(evp_key)
         }
-    
     }
 
     pub fn encrypt(data: &Vec<u8>, pubKey: &Vec<u8>) -> Result<Vec<u8>, String> {
@@ -218,7 +213,7 @@ impl SM2 {
         let mut r = vec![];
         unsafe {
             let ciphertext_len: *mut size_t = Box::into_raw(Box::new(0));
-            
+
             let mut pkey = match SM2::create_evp_pkey(priKey, false) {
                 Ok(evp_key) => evp_key,
                 Err(e) => return Err(e),
@@ -244,7 +239,7 @@ impl SM2 {
             EVP_PKEY_free(pkey);
             EVP_PKEY_CTX_free(ectx);
             // 处理返回值的长度
-            let mut result_vec=  cipher_text.to_vec();
+            let mut result_vec = cipher_text.to_vec();
             result_vec.truncate(*ciphertext_len);
             r = result_vec;
         }

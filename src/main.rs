@@ -1,16 +1,16 @@
 mod channel;
 mod db;
 mod error;
-mod utils;
 mod server;
 mod sm;
+mod utils;
 
 // use tokio::net::{TcpListener, TcpStream};
-use openssl::ssl::{SslAcceptor, SslMethod, SslFiletype, SslStream};
-use std::sync::Arc;
+use crate::server::Server;
+use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod, SslStream};
 use std::borrow::Borrow;
 use std::net::{TcpListener, TcpStream};
-use crate::server::Server;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
