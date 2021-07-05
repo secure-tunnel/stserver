@@ -18,11 +18,11 @@ extern "C" {
     pub fn EVP_PKEY_set_alias_type(pkey: *mut EVP_PKEY, ttype: c_int) -> c_int;
 
     pub fn EVP_MD_CTX_init(ctx: *mut EVP_MD_CTX);
-    pub fn EVP_VerifyInit_ex(ctx: *mut EVP_MD_CTX, ttype: *const EVP_MD, imple: *const c_uchar) -> c_int;
-    pub fn EVP_VerifyUpdate(ctx: *mut EVP_MD_CTX, d: *const c_uchar, cnt: size_t) ->  c_int;
+    pub fn EVP_VerifyInit_ex(ctx: *mut EVP_MD_CTX, ttype: *const EVP_MD, imple: *mut ENGINE) -> c_int;
+    pub fn EVP_VerifyUpdate(ctx: *mut EVP_MD_CTX, d: *const c_uchar, cnt: c_int) ->  c_int;
     pub fn EVP_VerifyFinal(ctx: *mut EVP_MD_CTX, sigbuf: *const c_uchar, siglen: size_t, pkey: *mut EVP_PKEY) -> c_int;
-    pub fn EVP_SignInit_ex(ctx: *mut EVP_MD_CTX, ttype: *const EVP_MD, imple: *const c_uchar) -> c_int;
-    pub fn EVP_SignUpdate(ctx: *mut EVP_MD_CTX, d: *const c_uchar, cnt: size_t) -> c_int;
+    pub fn EVP_SignInit_ex(ctx: *mut EVP_MD_CTX, ttype: *const EVP_MD, imple: *mut ENGINE) -> c_int;
+    pub fn EVP_SignUpdate(ctx: *mut EVP_MD_CTX, d: *const c_uchar, cnt: c_int) -> c_int;
     pub fn EVP_SignFinal(ctx: *mut EVP_MD_CTX, sig: *mut c_uchar, s: *mut c_int, pkey: *mut EVP_PKEY) -> c_int;
 }
 
@@ -264,14 +264,20 @@ impl SM2 {
             if EVP_SignInit_ex(evpMdCtx, EVP_sm3(), ptr::null_mut()) != 1 {
                 return Err(String::from(""));
             }
-            if EVP_SignUpdate(evpMdCtx, data.as_ptr(), data.len()) != 1 {
+            if EVP_SignUpdate(evpMdCtx, data.as_ptr(), data.len() as i32) != 1 {
                 return Err(String::from(""));
             }
-            let len_sig: *mut size_t = Box::into_raw(Box::new(0));
-            // if EVP_SignFinal(evpMdCtx,  
+            let len_sig: *mut i32 = Box::into_raw(Box::new(0));
+            let mut sig = vec![0; *len_sig as usize].into_boxed_slice();
+            if EVP_SignFinal(evpMdCtx, sig.as_mut_ptr(), len_sig, pkey) != 1 {
+                return Err(String::from(""));
+            }
+            EVP_MD_CTX_free(evpMdCtx);
+            EVP_PKEY_free(pkey);
+            let mut result_vec=  sig.to_vec();
+            result_vec.truncate(*len_sig as usize);
+            r = result_vec;
         }
-        
-
         Ok(r)
     }
     
@@ -287,7 +293,7 @@ impl SM2 {
             if EVP_VerifyInit_ex(evpMdCtx, EVP_sm3(), ptr::null_mut()) != 1  {
                 return Err(String::from(""));
             }
-            if EVP_VerifyUpdate(evpMdCtx, oldData.as_ptr(), oldData.len()) != 1 {
+            if EVP_VerifyUpdate(evpMdCtx, oldData.as_ptr(), oldData.len() as i32) != 1 {
                 return Err(String::from(""));
             }
             if EVP_VerifyFinal(evpMdCtx, data.as_ptr(), data.len(), evp_key) != 1 {
@@ -354,4 +360,30 @@ v6T0BhtziIZx5XKcnj1NnUvbDXLMUBv1v60nxmNYvzACZ1/HMTpmi7jCRg==
         assert_eq!(buffer, dec_data);
     }
 
+    #[test]
+    fn sm2_signverify() {
+        let private_key = String::from(
+            "-----BEGIN EC PARAMETERS-----
+BggqgRzPVQGCLQ==
+-----END EC PARAMETERS-----
+-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEINJRYi7nHKfAkCwCKnEAzjLmpnYsj3lXJhU0WGXiNdKooAoGCCqBHM9V
+AYItoUQDQgAEFtXYB9anklMdp9c19S6Gq/lgaxUiv6T0BhtziIZx5XKcnj1NnUvb
+DXLMUBv1v60nxmNYvzACZ1/HMTpmi7jCRg==
+-----END EC PRIVATE KEY-----",
+        )
+        .into_bytes();
+        let public_key = String::from(
+            "-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAEFtXYB9anklMdp9c19S6Gq/lgaxUi
+v6T0BhtziIZx5XKcnj1NnUvbDXLMUBv1v60nxmNYvzACZ1/HMTpmi7jCRg==
+-----END PUBLIC KEY-----",
+        )
+        .into_bytes();
+        let buffer = vec![
+            1, 3, 52, 3, 63, 64, 63, 2, 54, 36, 92, 67, 26, 7, 46, 87, 64,
+        ];
+        let sign_data = SM2::sign(&buffer, &public_key).unwrap();
+        assert_eq!(true, SM2::verify(&sign_data, &buffer, &public_key).unwrap());
+    }
 }
