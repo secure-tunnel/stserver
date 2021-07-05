@@ -18,10 +18,10 @@ extern "C" {
     pub fn EVP_PKEY_set_alias_type(pkey: *mut EVP_PKEY, ttype: c_int) -> c_int;
 
     pub fn EVP_MD_CTX_init(ctx: *mut EVP_MD_CTX);
-    pub fn EVP_VerifyInit_ex(ctx: *mut EVP_MD_CTX, ttype: *const EVP_MD, imple: *mut ENGINE) -> c_int;
+    pub fn EVP_VerifyInit_ex(ctx: *mut EVP_MD_CTX, tp: *const EVP_MD, ipl: *mut ENGINE) -> c_int;
     pub fn EVP_VerifyUpdate(ctx: *mut EVP_MD_CTX, d: *const c_uchar, cnt: c_int) ->  c_int;
     pub fn EVP_VerifyFinal(ctx: *mut EVP_MD_CTX, sigbuf: *const c_uchar, siglen: size_t, pkey: *mut EVP_PKEY) -> c_int;
-    pub fn EVP_SignInit_ex(ctx: *mut EVP_MD_CTX, ttype: *const EVP_MD, imple: *mut ENGINE) -> c_int;
+    pub fn EVP_SignInit_ex(ctx: *mut EVP_MD_CTX, tp: *const EVP_MD, ipl: *mut ENGINE) -> c_int;
     pub fn EVP_SignUpdate(ctx: *mut EVP_MD_CTX, d: *const c_uchar, cnt: c_int) -> c_int;
     pub fn EVP_SignFinal(ctx: *mut EVP_MD_CTX, sig: *mut c_uchar, s: *mut c_int, pkey: *mut EVP_PKEY) -> c_int;
 }

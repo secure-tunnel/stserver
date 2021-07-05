@@ -33,10 +33,13 @@ pub fn tunnel_process(addr: &SocketAddr, data: Vec<u8>) -> Vec<u8> {
         let decrypt_data = dataEntry.decrypt();
     }
 
-    datapack::common_pack(
+    match datapack::common_pack(
         &data_result,
         &dataEntry.aes_key,
         dataEntry.data_type,
         &token,
-    );
+    ) {
+        Ok(_data) => _data,
+        Err(err) => err.to_string().as_bytes().to_vec(),
+    }
 }

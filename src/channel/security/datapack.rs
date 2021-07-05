@@ -54,7 +54,7 @@ fn common_pack_core(
     model_x: u8,
     model_y: u8,
     data_type: u8,
-    token: &str,
+    token: &Vec<u8>,
 ) -> Vec<u8> {
     // todo 从配置server读取是否启用混淆. 数据依据toekn找到关联的项目配置信息 \
     //   混淆数据的粒度控制：项目 or API接口
@@ -73,7 +73,7 @@ fn common_pack_core(
     res[17] = model_x as u8;
     res[18] = model_y as u8;
     res[19] = data_type;
-    res[20..60].copy_from_slice(token.as_bytes());
+    res[20..60].copy_from_slice(token.as_slice());
     res[60] = mixed_flag;
     res[61..total_len - 1].copy_from_slice(encrypted_data.as_slice());
     res[total_len - 1] = 0xFE;
@@ -89,7 +89,7 @@ pub fn common_pack(
     data: &Vec<u8>,
     key: &Vec<u8>,
     data_type: u8,
-    token: &str,
+    token: &Vec<u8>,
 ) -> Result<Vec<u8>, Error> {
     // 产生model x and y
     let model_x = models::model_rand_choice();
@@ -191,8 +191,7 @@ mod test {
         let data = vec![1, 2, 3, 4, 5, 6];
         let key = vec![20; 48];
         let token = vec![0; 40];
-        let v1 = common_pack(&data, &key, 1, String::from_utf8(token).unwrap().as_str())
-            .unwrap_or(Vec::new());
+        let v1 = common_pack(&data, &key, 1, &token);
         // match common_unpack(&v1) {
         //     Ok(data1) => assert_eq!(data, data1.content),
         //     Err(message) => println!("{}", message),
