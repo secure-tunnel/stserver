@@ -7,15 +7,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-openssl="0.10.34"
+openssl="0.10.3"
 rand="0.8.3"
-#hyper = { version = "0.14", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 mysql_async="0.27.1"
 redis = { version = "0.20.1", features = [ "cluster", "tokio-comp"] }
-#tower-service = "0.3.1"
 lazy_static = "1.4.0"
-libsm = "0.4.0"
 tokio-rustls = "0.22.0"
 openssl-sys = "0.9"
 libc = "0.2.93"
+sm2 = "0.0.1"

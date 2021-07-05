@@ -17,13 +17,8 @@ extern "C" {
     pub fn EVP_PKEY_set1_EC_KEY(pkey: *mut EVP_PKEY, key: *mut EC_KEY) -> c_int;
     pub fn EVP_PKEY_set_alias_type(pkey: *mut EVP_PKEY, ttype: c_int) -> c_int;
 
-    pub fn EVP_MD_CTX_init(ctx: *mut EVP_MD_CTX);
-    pub fn EVP_VerifyInit_ex(ctx: *mut EVP_MD_CTX, tp: *const EVP_MD, ipl: *mut ENGINE) -> c_int;
-    pub fn EVP_VerifyUpdate(ctx: *mut EVP_MD_CTX, d: *const c_uchar, cnt: c_int) ->  c_int;
-    pub fn EVP_VerifyFinal(ctx: *mut EVP_MD_CTX, sigbuf: *const c_uchar, siglen: size_t, pkey: *mut EVP_PKEY) -> c_int;
-    pub fn EVP_SignInit_ex(ctx: *mut EVP_MD_CTX, tp: *const EVP_MD, ipl: *mut ENGINE) -> c_int;
-    pub fn EVP_SignUpdate(ctx: *mut EVP_MD_CTX, d: *const c_uchar, cnt: c_int) -> c_int;
-    pub fn EVP_SignFinal(ctx: *mut EVP_MD_CTX, sig: *mut c_uchar, s: *mut c_int, pkey: *mut EVP_PKEY) -> c_int;
+    pub fn EVP_PKEY_CTX_set1_id(ctx: *mut EVP_PKEY_CTX, id: *mut c_uchar, id_len: c_int) -> c_int;
+    pub fn EVP_MD_CTX_set_pkey_ctx(ctx: *mut EVP_MD_CTX, sctx: *mut EVP_PKEY_CTX) -> c_int;
 }
 
 pub struct SM3 {}
@@ -246,6 +241,8 @@ impl SM2 {
         Ok(r)
     }
 
+    // https://nongguangxin.cn/%E5%9B%BD%E5%AF%86SM2-OpenSSL-EVP%E6%8E%A5%E5%8F%A3%E4%BE%8B%E5%AD%90.html
+    
     pub fn sign(data: &Vec<u8>, priKey: &Vec<u8>) -> Result<Vec<u8>, String> {
         let mut r = vec![];
         unsafe{
@@ -253,9 +250,16 @@ impl SM2 {
                 Ok(evp_key) => evp_key,
                 Err(e) => return Err(e),
             };
-            EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2);
+            // EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2);
+            
             let mut evpMdCtx: *mut EVP_MD_CTX = EVP_MD_CTX_new();
-            EVP_MD_CTX_init(evpMdCtx);
+            let mut sctx = EVP_PKEY_CTX_new(pkey, ptr::null_mut());
+            // EVP_PKEY_CTX_set1_id(sctx, data.as_mut_ptr(), data.len() as i32);
+            EVP_MD_CTX_set_pkey_ctx(evpMdCtx, sctx);
+
+            EVP_DigestSignInit(evpMdCtx, ptr::null_mut(), EVP_sm3(), ptr::null_mut(), pkey.as_ptr());
+            EVP_DigestSign(evpMdCtx, ptr::null_mut(), )
+
             if EVP_SignInit_ex(evpMdCtx, EVP_sm3(), ptr::null_mut()) != 1 {
                 return Err(String::from(""));
             }
