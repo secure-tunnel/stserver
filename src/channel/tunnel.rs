@@ -8,7 +8,7 @@
    3
 */
 
-use crate::utils;
+use crate::{sm::SM2, utils};
 
 /*
    处理协商第一个请求
@@ -17,12 +17,21 @@ pub fn tunnel_first(data: &Vec<u8>) -> Vec<u8> {
     let unique_id = data[0..32].to_vec();
     // todo 根据唯一标识查询私钥KEY
     let private_key = vec![0];
-    let dec_data = utils::rsa_privatekey_decrypt(&data[32..].to_vec(), &private_key).unwrap();
+    let dec_data = SM2::decrypt(&data[32..].to_vec(), &private_key).unwrap();
+    // todo randomA Mac存入缓存
     let random_a = dec_data[0..32].to_vec();
     let mac = dec_data[32..].to_vec();
     // todo create random B
-    let random_b = vec![0];
-    Vec::new()
+    let random_b: Vec<u8> = vec![0];
+    // todo 查询一个证书
+    let cert: Vec<u8> = vec![];
+    let mut no_sign_data = Vec::new();
+    no_sign_data.extend(&random_b);
+    no_sign_data.extend(&cert);
+    let mut sign_data = SM2::sign(&no_sign_data, &private_key).unwrap();
+    sign_data.extend(&random_b);
+    sign_data.extend(&cert);
+    sign_data
 }
 
 /*
