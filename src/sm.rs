@@ -17,7 +17,6 @@ extern "C" {
     pub fn EVP_PKEY_set1_EC_KEY(pkey: *mut EVP_PKEY, key: *mut EC_KEY) -> c_int;
     pub fn EVP_PKEY_set_alias_type(pkey: *mut EVP_PKEY, ttype: c_int) -> c_int;
 
-    pub fn EVP_PKEY_CTX_set1_id(ctx: *mut EVP_PKEY_CTX, id: *mut c_uchar, id_len: c_int) -> c_int;
     pub fn EVP_MD_CTX_set_pkey_ctx(ctx: *mut EVP_MD_CTX, sctx: *mut EVP_PKEY_CTX) -> c_int;
 }
 
@@ -242,8 +241,6 @@ impl SM2 {
         Ok(r)
     }
 
-    // https://nongguangxin.cn/%E5%9B%BD%E5%AF%86SM2-OpenSSL-EVP%E6%8E%A5%E5%8F%A3%E4%BE%8B%E5%AD%90.html
-    
     pub fn sign(data: &Vec<u8>, priKey: &Vec<u8>) -> Result<Vec<u8>, String> {
         let mut r = vec![];
         unsafe{
