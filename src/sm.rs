@@ -197,6 +197,7 @@ impl SM2 {
                 data.as_ptr(),
                 data.len(),
             );
+            drop(Box::from_raw(ciphertext_len));
             EVP_PKEY_free(evp_key);
             EVP_PKEY_CTX_free(ectx);
             r = cipher_text.to_vec();
@@ -246,63 +247,54 @@ impl SM2 {
     pub fn sign(data: &Vec<u8>, priKey: &Vec<u8>) -> Result<Vec<u8>, String> {
         let mut r = vec![];
         unsafe{
+            let sig_len: *mut size_t = Box::into_raw(Box::new(0));
+
             let mut pkey = match SM2::create_evp_pkey(priKey, false) {
                 Ok(evp_key) => evp_key,
                 Err(e) => return Err(e),
             };
-            // EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2);
             
             let mut evpMdCtx: *mut EVP_MD_CTX = EVP_MD_CTX_new();
+            EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2);
             let mut sctx = EVP_PKEY_CTX_new(pkey, ptr::null_mut());
-            // EVP_PKEY_CTX_set1_id(sctx, data.as_mut_ptr(), data.len() as i32);
             EVP_MD_CTX_set_pkey_ctx(evpMdCtx, sctx);
-
-            EVP_DigestSignInit(evpMdCtx, ptr::null_mut(), EVP_sm3(), ptr::null_mut(), pkey.as_ptr());
-            EVP_DigestSign(evpMdCtx, ptr::null_mut(), )
-
-            if EVP_SignInit_ex(evpMdCtx, EVP_sm3(), ptr::null_mut()) != 1 {
-                return Err(String::from(""));
-            }
-            if EVP_SignUpdate(evpMdCtx, data.as_ptr(), data.len() as i32) != 1 {
-                return Err(String::from(""));
-            }
-            let len_sig: *mut i32 = Box::into_raw(Box::new(0));
-            let mut sig = vec![0; *len_sig as usize].into_boxed_slice();
-            if EVP_SignFinal(evpMdCtx, sig.as_mut_ptr(), len_sig, pkey) != 1 {
-                return Err(String::from(""));
-            }
+            EVP_DigestSignInit(evpMdCtx, ptr::null_mut(), EVP_sm3(), ptr::null_mut(), pkey);
+            EVP_DigestSign(evpMdCtx, ptr::null_mut(), sig_len, data.as_ptr(), data.len());
+            let mut sig = vec![0; *sig_len].into_boxed_slice();
+            EVP_DigestSign(evpMdCtx, sig.as_mut_ptr(), sig_len, data.as_ptr(), data.len());
             EVP_MD_CTX_free(evpMdCtx);
+            EVP_PKEY_CTX_free(sctx);
             EVP_PKEY_free(pkey);
-            let mut result_vec=  sig.to_vec();
-            result_vec.truncate(*len_sig as usize);
+
+            let mut result_vec = sig.to_vec();
+            result_vec.truncate(*sig_len);
             r = result_vec;
         }
         Ok(r)
     }
     
     pub fn verify(data: &Vec<u8>, oldData: &Vec<u8>, pubKey: &Vec<u8>) -> Result<bool, String> {
+        let mut verify_result = false;
         unsafe {
             let evp_key = match SM2::create_evp_pkey(pubKey, true) {
                 Ok(evp_key) => evp_key,
                 Err(e) => return Err(e),
             };
+            let evpMdCtx: *mut EVP_MD_CTX = EVP_MD_CTX_new();
             EVP_PKEY_set_alias_type(evp_key, EVP_PKEY_SM2);
-            let mut evpMdCtx: *mut EVP_MD_CTX = EVP_MD_CTX_new();
-            EVP_MD_CTX_init(evpMdCtx);
-            if EVP_VerifyInit_ex(evpMdCtx, EVP_sm3(), ptr::null_mut()) != 1  {
-                return Err(String::from(""));
+            let sctx = EVP_PKEY_CTX_new(evp_key, ptr::null_mut());
+            EVP_MD_CTX_set_pkey_ctx(evpMdCtx, sctx);
+            EVP_DigestVerifyInit(evpMdCtx, ptr::null_mut(), EVP_sm3(), ptr::null_mut(), evp_key);
+            if EVP_DigestVerify(evpMdCtx, data.as_ptr(), data.len(), oldData.as_ptr(), oldData.len()) != 1 {
+                verify_result = false;
+            }else{
+                verify_result = true;
             }
-            if EVP_VerifyUpdate(evpMdCtx, oldData.as_ptr(), oldData.len() as i32) != 1 {
-                return Err(String::from(""));
-            }
-            if EVP_VerifyFinal(evpMdCtx, data.as_ptr(), data.len(), evp_key) != 1 {
-                return Err(String::from(""));
-            }
-            
+            EVP_PKEY_CTX_free(sctx);
             EVP_PKEY_free(evp_key);
             EVP_MD_CTX_free(evpMdCtx);
         }
-        Ok(true)
+        Ok(verify_result)
     }
 }
 
@@ -382,7 +374,8 @@ v6T0BhtziIZx5XKcnj1NnUvbDXLMUBv1v60nxmNYvzACZ1/HMTpmi7jCRg==
         let buffer = vec![
             1, 3, 52, 3, 63, 64, 63, 2, 54, 36, 92, 67, 26, 7, 46, 87, 64,
         ];
-        let sign_data = SM2::sign(&buffer, &public_key).unwrap();
+        let sign_data = SM2::sign(&buffer, &private_key).unwrap();
+        println!("sign_data len: {}", sign_data.len());
         assert_eq!(true, SM2::verify(&sign_data, &buffer, &public_key).unwrap());
     }
 }
