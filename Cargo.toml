@@ -10,7 +10,7 @@ edition = "2018"
 openssl="0.10.3"
 rand="0.8.3"
 tokio = { version = "1", features = ["full"] }
-mysql_async="0.27.1"
+mysql="21.0.0"
 redis = { version = "0.20.1", features = [ "cluster", "tokio-comp"] }
 lazy_static = "1.4.0"
 tokio-rustls = "0.22.0"
