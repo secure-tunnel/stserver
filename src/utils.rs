@@ -1,5 +1,5 @@
 use crate::error::Error;
-use mysql_async::chrono::{Datelike, Local, Timelike};
+use chrono::{Datelike, Local, Timelike};
 use openssl::rsa::{Padding, Rsa};
 use openssl::symm::{Cipher, Crypter, Mode};
 

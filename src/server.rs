@@ -1,5 +1,6 @@
 use crate::channel;
 use crate::utils;
+use libc::perror;
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod, SslStream};
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -54,10 +55,11 @@ pub async fn run(server: &Server) -> io::Result<()> {
         .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
     let acceptor = TlsAcceptor::from(Arc::new(config));
     let listener = TcpListener::bind(server.ipaddr.as_str()).await?;
+    println!("stserver bind success!");
     loop {
         let (stream, peer_addr) = listener.accept().await?;
         let acceptor = acceptor.clone();
-
+        println!("stserver listen success! {}", peer_addr);
         let fut = async move {
             let mut stream = acceptor.accept(stream).await?;
             let (mut reader, mut writer) = split(stream);

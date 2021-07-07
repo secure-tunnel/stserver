@@ -243,22 +243,34 @@ impl SM2 {
 
     pub fn sign(data: &Vec<u8>, priKey: &Vec<u8>) -> Result<Vec<u8>, String> {
         let mut r = vec![];
-        unsafe{
+        unsafe {
             let sig_len: *mut size_t = Box::into_raw(Box::new(0));
 
             let mut pkey = match SM2::create_evp_pkey(priKey, false) {
                 Ok(evp_key) => evp_key,
                 Err(e) => return Err(e),
             };
-            
+
             let mut evpMdCtx: *mut EVP_MD_CTX = EVP_MD_CTX_new();
             EVP_PKEY_set_alias_type(pkey, EVP_PKEY_SM2);
             let mut sctx = EVP_PKEY_CTX_new(pkey, ptr::null_mut());
             EVP_MD_CTX_set_pkey_ctx(evpMdCtx, sctx);
             EVP_DigestSignInit(evpMdCtx, ptr::null_mut(), EVP_sm3(), ptr::null_mut(), pkey);
-            EVP_DigestSign(evpMdCtx, ptr::null_mut(), sig_len, data.as_ptr(), data.len());
+            EVP_DigestSign(
+                evpMdCtx,
+                ptr::null_mut(),
+                sig_len,
+                data.as_ptr(),
+                data.len(),
+            );
             let mut sig = vec![0; *sig_len].into_boxed_slice();
-            EVP_DigestSign(evpMdCtx, sig.as_mut_ptr(), sig_len, data.as_ptr(), data.len());
+            EVP_DigestSign(
+                evpMdCtx,
+                sig.as_mut_ptr(),
+                sig_len,
+                data.as_ptr(),
+                data.len(),
+            );
             EVP_MD_CTX_free(evpMdCtx);
             EVP_PKEY_CTX_free(sctx);
             EVP_PKEY_free(pkey);
@@ -269,7 +281,7 @@ impl SM2 {
         }
         Ok(r)
     }
-    
+
     pub fn verify(data: &Vec<u8>, oldData: &Vec<u8>, pubKey: &Vec<u8>) -> Result<bool, String> {
         let mut verify_result = false;
         unsafe {
@@ -281,10 +293,23 @@ impl SM2 {
             EVP_PKEY_set_alias_type(evp_key, EVP_PKEY_SM2);
             let sctx = EVP_PKEY_CTX_new(evp_key, ptr::null_mut());
             EVP_MD_CTX_set_pkey_ctx(evpMdCtx, sctx);
-            EVP_DigestVerifyInit(evpMdCtx, ptr::null_mut(), EVP_sm3(), ptr::null_mut(), evp_key);
-            if EVP_DigestVerify(evpMdCtx, data.as_ptr(), data.len(), oldData.as_ptr(), oldData.len()) != 1 {
+            EVP_DigestVerifyInit(
+                evpMdCtx,
+                ptr::null_mut(),
+                EVP_sm3(),
+                ptr::null_mut(),
+                evp_key,
+            );
+            if EVP_DigestVerify(
+                evpMdCtx,
+                data.as_ptr(),
+                data.len(),
+                oldData.as_ptr(),
+                oldData.len(),
+            ) != 1
+            {
                 verify_result = false;
-            }else{
+            } else {
                 verify_result = true;
             }
             EVP_PKEY_CTX_free(sctx);
