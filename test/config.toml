@@ -1,0 +1,13 @@
+[app]
+tls_cert = "test/server_cert.pem"
+tls_key = "test/server_key.pem"
+
+[redis]
+host = ["trojan.liuweihua.cn:6397", "trojan.liuweihua.cn:6380"]
+
+
+[mysql]
+host = "trojan.liuweihua.cn"
+port = 3306
+user = "secure_tunnel"
+passwd = "secure_tunnel123"
