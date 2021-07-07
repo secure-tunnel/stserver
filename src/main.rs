@@ -1,5 +1,5 @@
 mod channel;
-mod db;
+mod store;
 mod error;
 mod server;
 mod sm;
