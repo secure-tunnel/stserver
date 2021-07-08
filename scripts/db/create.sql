@@ -18,6 +18,7 @@ create table app(
 create table app_client_key(
     app_id int not null,
     client_type int not null,
+    serialid varchar(100), -- 唯一标识
     pubkey varchar(2000), -- 公钥
     prikey varchar(2000), -- 私钥
     primary key (app_id, client_type)

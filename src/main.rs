@@ -1,10 +1,10 @@
 mod channel;
-mod store;
+mod config;
 mod error;
 mod server;
 mod sm;
+mod store;
 mod utils;
-mod config;
 
 use std::{
     fs::File,

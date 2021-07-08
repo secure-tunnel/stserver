@@ -3,11 +3,11 @@ tls_cert = "test/server_cert.pem"
 tls_key = "test/server_key.pem"
 
 [redis]
-host = ["trojan.liuweihua.cn:6397", "trojan.liuweihua.cn:6380"]
-
+host = ["dev.liuweihua.cn:5601", "dev.liuweihua.cn:5602"]
+auth_passwd = "secure_tunnel123"
 
 [mysql]
-host = "trojan.liuweihua.cn"
-port = 3306
+host = "dev.liuweihua.cn"
+port = 5600
 user = "secure_tunnel"
 passwd = "secure_tunnel123"
