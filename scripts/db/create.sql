@@ -21,7 +21,7 @@ create table app_client_key(
     serialid varchar(100), -- 唯一标识
     pubkey varchar(2000), -- 公钥
     prikey varchar(2000), -- 私钥
-    primary key (app_id, client_type)
+    primary key (app_id, client_type, serialid)
 ) default charset utf8;
 
 /* 网关接口 */

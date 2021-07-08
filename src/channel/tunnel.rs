@@ -8,16 +8,28 @@
    3
 */
 
-use crate::{sm::SM2, utils};
+use std::vec;
+
+use crate::{sm::SM2, store::db::AppClientKey, utils};
 
 /*
    处理协商第一个请求
 */
-pub fn tunnel_first(data: &Vec<u8>) -> Vec<u8> {
+pub fn tunnel_first(data: &Vec<u8>) -> (Vec<u8>, Vec<u8>) {
     let unique_id = data[0..32].to_vec();
     // todo 根据唯一标识查询私钥KEY
-    let private_key = vec![0];
+    let id = match String::from_utf8(unique_id) {
+        Ok(id) => id,
+        Err(err) => String::from(""),
+    };
+    let private_key: Vec<u8> = match AppClientKey::get_with_app_client(id.as_str()) {
+        Ok(Some(app_client_key)) => Vec::from(app_client_key.prikey),
+        Ok(None) => return (vec![], vec![]),
+        Err(_) => return (vec![], vec![]),
+    };
     let dec_data = SM2::decrypt(&data[32..].to_vec(), &private_key).unwrap();
+    // 生成TOKEN
+    let token = vec![];
     // todo randomA Mac存入缓存
     let random_a = dec_data[0..32].to_vec();
     let mac = dec_data[32..].to_vec();
@@ -31,7 +43,7 @@ pub fn tunnel_first(data: &Vec<u8>) -> Vec<u8> {
     let mut sign_data = SM2::sign(&no_sign_data, &private_key).unwrap();
     sign_data.extend(&random_b);
     sign_data.extend(&cert);
-    sign_data
+    (sign_data, token)
 }
 
 /*

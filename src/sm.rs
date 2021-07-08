@@ -5,6 +5,8 @@ use std::ptr;
 
 use libc::*;
 
+use crate::error::{self, Error, ErrorKind};
+
 pub const EVP_PKEY_SM2: c_int = NID_sm2;
 pub const NID_sm2: c_int = 1172;
 
@@ -127,26 +129,35 @@ impl SM4 {
 pub struct SM2 {}
 
 impl SM2 {
-    fn create_evp_pkey(key: &Vec<u8>, is_pub: bool) -> Result<*mut EVP_PKEY, String> {
+    fn create_evp_pkey(key: &Vec<u8>, is_pub: bool) -> error::Result<*mut EVP_PKEY> {
         unsafe {
             let mut evp_key = EVP_PKEY_new();
             let mut ec_key = ptr::null_mut();
             let userdata = ptr::null_mut();
             let keybio = BIO_new_mem_buf(key.as_ptr() as *const c_void, key.len() as i32);
             if keybio == ptr::null_mut() {
-                return Err(String::from("BIO_new_mem_buf failed."));
+                return Err(Error::new(
+                    ErrorKind::SM2_EVP_PKEY,
+                    "BIO_new_mem_buf failed.",
+                ));
             }
             let pem_passwd_cb = Option::None;
             if is_pub {
                 let ec_key = PEM_read_bio_EC_PUBKEY(keybio, &mut ec_key, pem_passwd_cb, userdata);
                 if ec_key == ptr::null_mut() {
                     BIO_free_all(keybio);
-                    return Err(String::from("PEM_read_bio_EC_PUBKEY failed"));
+                    return Err(Error::new(
+                        ErrorKind::SM2_EVP_PKEY,
+                        "PEM_read_bio_EC_PUBKEY failed",
+                    ));
                 }
                 if EVP_PKEY_set1_EC_KEY(evp_key, ec_key) != 1 {
                     EC_KEY_free(ec_key);
                     BIO_free_all(keybio);
-                    return Err(String::from("EVP_KEY_set1_EC_KEY failed"));
+                    return Err(Error::new(
+                        ErrorKind::SM2_EVP_PKEY,
+                        "EVP_KEY_set1_EC_KEY failed",
+                    ));
                 }
                 EC_KEY_free(ec_key);
             } else {
@@ -154,12 +165,18 @@ impl SM2 {
                     PEM_read_bio_ECPrivateKey(keybio, &mut ec_key, pem_passwd_cb, userdata);
                 if ec_key == ptr::null_mut() {
                     BIO_free_all(keybio);
-                    return Err(String::from("PEM_read_bio_ECPrivateKey failed"));
+                    return Err(Error::new(
+                        ErrorKind::SM2_EVP_PKEY,
+                        "PEM_read_bio_ECPrivateKey failed",
+                    ));
                 }
                 if EVP_PKEY_set1_EC_KEY(evp_key, ec_key) != 1 {
                     EC_KEY_free(ec_key);
                     BIO_free_all(keybio);
-                    return Err(String::from("EVP_KEY_set1_EC_KEY failed"));
+                    return Err(Error::new(
+                        ErrorKind::SM2_EVP_PKEY,
+                        "EVP_KEY_set1_EC_KEY failed",
+                    ));
                 }
                 EC_KEY_free(ec_key);
             }
@@ -169,7 +186,7 @@ impl SM2 {
         }
     }
 
-    pub fn encrypt(data: &Vec<u8>, pubKey: &Vec<u8>) -> Result<Vec<u8>, String> {
+    pub fn encrypt(data: &Vec<u8>, pubKey: &Vec<u8>) -> error::Result<Vec<u8>> {
         let mut r = vec![];
         unsafe {
             let ciphertext_len: *mut size_t = Box::into_raw(Box::new(0));
@@ -204,7 +221,7 @@ impl SM2 {
         Ok(r)
     }
 
-    pub fn decrypt(data: &Vec<u8>, priKey: &Vec<u8>) -> Result<Vec<u8>, String> {
+    pub fn decrypt(data: &Vec<u8>, priKey: &Vec<u8>) -> error::Result<Vec<u8>> {
         let mut r = vec![];
         unsafe {
             let ciphertext_len: *mut size_t = Box::into_raw(Box::new(0));
@@ -241,7 +258,7 @@ impl SM2 {
         Ok(r)
     }
 
-    pub fn sign(data: &Vec<u8>, priKey: &Vec<u8>) -> Result<Vec<u8>, String> {
+    pub fn sign(data: &Vec<u8>, priKey: &Vec<u8>) -> error::Result<Vec<u8>> {
         let mut r = vec![];
         unsafe {
             let sig_len: *mut size_t = Box::into_raw(Box::new(0));
@@ -282,7 +299,7 @@ impl SM2 {
         Ok(r)
     }
 
-    pub fn verify(data: &Vec<u8>, oldData: &Vec<u8>, pubKey: &Vec<u8>) -> Result<bool, String> {
+    pub fn verify(data: &Vec<u8>, oldData: &Vec<u8>, pubKey: &Vec<u8>) -> error::Result<bool> {
         let mut verify_result = false;
         unsafe {
             let evp_key = match SM2::create_evp_pkey(pubKey, true) {

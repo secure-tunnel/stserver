@@ -1,3 +1,3 @@
 pub mod cache;
-mod db;
+pub mod db;
 pub mod mem;

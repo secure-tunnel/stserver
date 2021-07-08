@@ -1,5 +1,5 @@
 use super::models;
-use crate::error::{Error, ErrorKind};
+use crate::error::{self, Error, ErrorKind};
 use crate::utils;
 use openssl::symm::{Cipher, Crypter, Mode};
 use std::ptr::null;
@@ -89,7 +89,7 @@ pub fn common_pack(
     key: &Vec<u8>,
     data_type: u8,
     token: &Vec<u8>,
-) -> Result<Vec<u8>, Error> {
+) -> error::Result<Vec<u8>> {
     // 产生model x and y
     let model_x = models::model_rand_choice();
     let mut model_y = model_x;
@@ -111,7 +111,7 @@ pub fn common_pack(
         let res = common_pack_core(&ciphertext, model_x as u8, model_y as u8, data_type, token);
         Ok(res)
     } else {
-        Err(Error::new(ErrorKind::DATATYPE, "data type not matched!"))
+        Err(Error::new(ErrorKind::DATA_TYPE, "data type not matched!"))
     }
 }
 

@@ -22,7 +22,8 @@ pub fn tunnel_process(addr: &SocketAddr, data: Vec<u8>) -> Vec<u8> {
     let mut token = vec![];
     let mut data_result = vec![];
     if dataEntry.data_type == 1 {
-        data_result = tunnel::tunnel_first(&dataEntry.content);
+        let (data_result, token_t) = tunnel::tunnel_first(&dataEntry.content);
+        token = token_t;
     } else if dataEntry.data_type == 2 {
         token = dataEntry.token.clone();
         // check dataEntry.token()
