@@ -1,5 +1,6 @@
 use super::models;
 use crate::error::{self, Error, ErrorKind};
+use crate::sm::SM4;
 use crate::utils;
 use openssl::symm::{Cipher, Crypter, Mode};
 use std::ptr::null;
@@ -17,7 +18,8 @@ pub struct DataEntry {
     model_x: u8,
     model_y: u8,
     pub token: Vec<u8>,
-    pub aes_key: Vec<u8>,
+    // 对称密钥key and iv
+    pub symmetric_key: Vec<u8>,
     pub data_type: u8,
     pub content: Vec<u8>,
 }
@@ -34,18 +36,19 @@ impl DataEntry {
             model_x: model_x,
             model_y: model_y,
             token: token.clone(),
-            aes_key: vec![],
+            symmetric_key: vec![],
             data_type: data_type,
             content: data.clone(),
         }
     }
 
     pub fn decrypt(&self) -> Vec<u8> {
-        let mut key = self.aes_key.clone();
+        let mut key = self.symmetric_key.clone();
         key[0] = self.model_x as u8;
-        key[self.aes_key.len() - 1] = self.model_y as u8;
-        utils::aes_256_cbc(&self.content, &key, Mode::Decrypt).unwrap()
+        key[self.symmetric_key.len() - 1] = self.model_y as u8;
+        SM4::decrypt(&self.content, &key, &key[32..48].to_vec())
     }
+
 }
 
 fn common_pack_core(
@@ -107,12 +110,13 @@ pub fn common_pack(
         let mut key_r = key.clone();
         key_r[0] = model_x as u8;
         key_r[key.len() - 1] = model_y as u8;
-        let ciphertext = utils::aes_256_cbc(&data, &key_r, Mode::Encrypt).unwrap();
+        let ciphertext = SM4::encrypt(&data, &key_r, &key[32..48].to_vec());
         let res = common_pack_core(&ciphertext, model_x as u8, model_y as u8, data_type, token);
         Ok(res)
-    } else {
-        Err(Error::new(ErrorKind::DATA_TYPE, "data type not matched!"))
+    }else{
+        Ok(vec![])
     }
+    
 }
 
 /*
@@ -135,7 +139,7 @@ pub fn common_unpack(data: &Vec<u8>) -> Result<DataEntry, Error> {
     let model_x = data[17];
     let model_y = data[18];
     let data_type = data[19];
-    if (enc_data_len + 62 != data.len() as u32) {
+    if enc_data_len + 62 != data.len() as u32 {
         return Err(Error::new(ErrorKind::DATA_INVALID, "data len not matched!"));
     }
     let token = data[20..60].to_vec();
@@ -150,7 +154,7 @@ pub fn common_unpack(data: &Vec<u8>) -> Result<DataEntry, Error> {
         models::model_decrypt(&mut mixed_data, model_y as u32);
         models::model_decrypt(&mut mixed_data, model_x as u32);
 
-        if (data_len != mixed_data.len() as u32) {
+        if data_len != mixed_data.len() as u32 {
             return Err(Error::new(
                 ErrorKind::DATA_UNPACK_OLDDATA_NOMATCH,
                 "old data len not matched!",
@@ -185,15 +189,4 @@ mod test {
         println!("{}, {}", model_x, model_y);
     }
 
-    #[test]
-    fn pack() {
-        let data = vec![1, 2, 3, 4, 5, 6];
-        let key = vec![20; 48];
-        let token = vec![0; 40];
-        let v1 = common_pack(&data, &key, 1, &token);
-        // match common_unpack(&v1) {
-        //     Ok(data1) => assert_eq!(data, data1.content),
-        //     Err(message) => println!("{}", message),
-        // }
-    }
 }

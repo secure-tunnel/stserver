@@ -10,26 +10,25 @@
 
 use std::vec;
 
-use crate::{sm::SM2, store::db::AppClientKey, utils};
+use rand::Rng;
+
+use crate::{error::{self, Error, ErrorKind}, sm::{SM2, SM3}, store::db::AppClientKey, utils};
 
 /*
    处理协商第一个请求
 */
-pub fn tunnel_first(data: &Vec<u8>) -> (Vec<u8>, Vec<u8>) {
+pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
+    let data_hash = SM3::hash(&data);
     let unique_id = data[0..32].to_vec();
     // todo 根据唯一标识查询私钥KEY
-    let id = match String::from_utf8(unique_id) {
-        Ok(id) => id,
-        Err(err) => String::from(""),
+    let id = String::from_utf8(unique_id)?;
+    let private_key = match AppClientKey::get_with_app_client(id.as_str())? {
+        Some(app_client_key) => app_client_key.prikey.into_bytes(),
+        None => return Err(Error::new(ErrorKind::MYSQL_NO_DATA, "not found app_client_key record"))
     };
-    let private_key: Vec<u8> = match AppClientKey::get_with_app_client(id.as_str()) {
-        Ok(Some(app_client_key)) => Vec::from(app_client_key.prikey),
-        Ok(None) => return (vec![], vec![]),
-        Err(_) => return (vec![], vec![]),
-    };
-    let dec_data = SM2::decrypt(&data[32..].to_vec(), &private_key).unwrap();
+    let dec_data = SM2::decrypt(&data[32..].to_vec(), &private_key)?;
     // 生成TOKEN
-    let token = vec![];
+    let token = create_token();
     // todo randomA Mac存入缓存
     let random_a = dec_data[0..32].to_vec();
     let mac = dec_data[32..].to_vec();
@@ -37,16 +36,38 @@ pub fn tunnel_first(data: &Vec<u8>) -> (Vec<u8>, Vec<u8>) {
     let random_b: Vec<u8> = vec![0];
     // todo 查询一个证书
     let cert: Vec<u8> = vec![];
+    // 序列化存入缓存服务
+    
+
     let mut no_sign_data = Vec::new();
     no_sign_data.extend(&random_b);
     no_sign_data.extend(&cert);
-    let mut sign_data = SM2::sign(&no_sign_data, &private_key).unwrap();
+    let mut sign_data = SM2::sign(&no_sign_data, &private_key)?;
     sign_data.extend(&random_b);
     sign_data.extend(&cert);
-    (sign_data, token)
+    Ok((sign_data, token))
 }
 
 /*
    处理协商第二个请求
 */
 pub fn tunnel_second() {}
+
+fn create_token() -> Vec<u8> {
+    // length 40
+    let mut data: Vec<u8> = vec![0;40];
+    data[0..32].copy_from_slice(SM3::hash(&utils::current_timestamp()).as_slice());
+    let mut rng = rand::thread_rng();
+    for i in 0..8 {
+        data[32 + i] = rng.gen_range(0..254);
+    }
+    data
+}
+
+fn pre_master_key() {
+
+}
+
+fn master_key() {
+
+}

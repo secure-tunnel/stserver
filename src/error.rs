@@ -1,4 +1,8 @@
-use std::fmt::{Debug, Display, Formatter};
+use std::{fmt::{Debug, Display, Formatter}, string::FromUtf8Error};
+
+use clap::Format;
+
+use crate::config::Config;
 
 pub struct Error {
     code: ErrorKind,
@@ -21,6 +25,11 @@ impl Error {
             msg: err.to_string(),
         }
     }
+
+    // 转为字节流
+    pub fn to_vec(&self) -> Vec<u8> {
+        todo!()
+    }
 }
 
 impl Display for Error {
@@ -38,6 +47,7 @@ impl Debug for Error {
     }
 }
 
+#[derive(Debug)]
 pub enum ErrorKind {
     DATA_INVALID,
     DATA_PACK,
@@ -46,6 +56,10 @@ pub enum ErrorKind {
     DATA_IO,
     MYSQL,
     SM2_EVP_PKEY,
+    TOML_DESERIALIZE,
+    OS_POISONERROR,
+    OS_FromUtf8Error,
+    MYSQL_NO_DATA,
 }
 
 impl From<std::io::Error> for Error {
@@ -61,6 +75,33 @@ impl From<mysql::Error> for Error {
     fn from(err: mysql::Error) -> Self {
         Error {
             code: ErrorKind::MYSQL,
+            msg: err.to_string(),
+        }
+    }
+}
+
+impl From<toml::de::Error> for Error {
+    fn from(err: toml::de::Error) -> Self {
+        Error {
+            code: ErrorKind::TOML_DESERIALIZE,
+            msg: err.to_string(),
+        }
+    }
+}
+
+impl From<std::sync::PoisonError<std::sync::MutexGuard<'_, Config>>> for Error {
+    fn from(err: std::sync::PoisonError<std::sync::MutexGuard<'_, Config>>) -> Self {
+        Error {
+            code: ErrorKind::OS_POISONERROR,
+            msg: err.to_string(),
+        }
+    }
+}
+
+impl From<FromUtf8Error> for Error {
+    fn from(err: FromUtf8Error) -> Self {
+        Error{
+            code: ErrorKind::OS_FromUtf8Error,
             msg: err.to_string(),
         }
     }

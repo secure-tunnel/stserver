@@ -17,7 +17,7 @@ use clap::{App, Arg};
 use daemonize::Daemonize;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> error::Result<()> {
     let matches = App::new("Secure Tunnel Server")
         .version("0.1")
         .author("auhiewuil@gmail.com")

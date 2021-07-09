@@ -5,6 +5,7 @@ use std::{
     io::{Read, Result},
 };
 
+use crate::error;
 use crate::store::mem;
 
 #[derive(Deserialize)]
@@ -44,17 +45,13 @@ impl Config {
     }
 }
 
-pub fn parse_config(path: &str) -> anyhow::Result<(), anyhow::Error> {
+pub fn parse_config(path: &str) -> error::Result<()> {
     let mut file = File::open(path)?;
     let file_size = file.metadata()?.len();
     let mut buffer: Vec<u8> = Vec::with_capacity(file_size as usize);
     file.read_to_end(&mut buffer)?;
     let config: Config = toml::from_slice(buffer.as_slice())?;
-    match mem::CONFIG.lock() {
-        Ok(mut config_value) => {
-            *config_value = config;
-            Ok(())
-        }
-        Err(err) => Err(anyhow::Error::msg(err.to_string())),
-    }
+    let mut config_value = mem::CONFIG.lock()?;
+    *config_value = config;
+    Ok(())
 }

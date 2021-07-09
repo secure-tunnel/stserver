@@ -346,7 +346,7 @@ mod test {
         let v = vec![
             1, 3, 52, 3, 63, 64, 63, 2, 54, 36, 92, 67, 26, 7, 46, 87, 64,
         ];
-        println!("{:#?}", SM3::hash(&v));
+        println!("{:#?}, len: {}", SM3::hash(&v), SM3::hash(&v).len());
     }
 
     #[test]
