@@ -1,5 +1,5 @@
 use crate::error::Error;
-use mysql_async::chrono::{Datelike, Local, Timelike};
+use chrono::{Datelike, Local, Timelike};
 use openssl::rsa::{Padding, Rsa};
 use openssl::symm::{Cipher, Crypter, Mode};
 
@@ -87,18 +87,21 @@ pub fn rsa_privatekey_decrypt(data: &Vec<u8>, privatekey: &Vec<u8>) -> Result<Ve
     Ok(encrypted_data)
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
 
+    #[test]
+    fn bytes_convert() {
+        let v: Vec<u8> = vec![1, 2, 3, 4];
+        assert_eq!(v[0..4].to_u32(), 0b00000001000000100000001100000100);
+        let t: u32 = 0b00000001000000100000001100000100;
+        assert_eq!(t.to_vector(), v);
+    }
 
-#[test]
-fn bytes_convert() {
-    let v: Vec<u8> = vec![1, 2, 3, 4];
-    assert_eq!(v[0..4].to_u32(), 0b00000001000000100000001100000100);
-    let t: u32 = 0b00000001000000100000001100000100;
-    assert_eq!(t.to_vector(), v);
-}
-
-#[test]
-fn current_timestamp1() {
-    let v = current_timestamp();
-    println!("{:#?}", v);
+    #[test]
+    fn current_timestamp1() {
+        let v = current_timestamp();
+        println!("{:#?}", v);
+    }
 }

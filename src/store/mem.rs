@@ -11,9 +11,11 @@ use lazy_static;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+use crate::config::Config;
+
 /*
-    存储一些临时变量
- */
+   存储一些临时变量
+*/
 pub struct MemEntry {
     pub str: String,
     pub vec: Vec<u8>,
@@ -31,8 +33,11 @@ impl MemEntry {
 }
 
 lazy_static::lazy_static! {
-    static ref HASHMAP: Mutex<HashMap<String, MemEntry>> = Mutex::new({
+    pub static ref HASHMAP: Mutex<HashMap<String, MemEntry>> = Mutex::new({
         let mut m = HashMap::new();
         m
     });
+
+    pub static ref CONFIG: Mutex<Config> = Mutex::new(Config::default());
+
 }

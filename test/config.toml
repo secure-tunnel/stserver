@@ -1,0 +1,13 @@
+[app]
+tls_cert = "test/server_cert.pem"
+tls_key = "test/server_key.pem"
+
+[redis]
+host = ["dev.liuweihua.cn:5601", "dev.liuweihua.cn:5602"]
+auth_passwd = "secure_tunnel123"
+
+[mysql]
+host = "dev.liuweihua.cn"
+port = 5600
+user = "secure_tunnel"
+passwd = "secure_tunnel123"
